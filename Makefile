@@ -1,27 +1,16 @@
-#---------------------------------------------------------------------------------
-# NECROROCK - Game Boy Advance
-#---------------------------------------------------------------------------------
-
 .SUFFIXES:
 
-#---------------------------------------------------------------------------------
-
 ifeq ($(strip $(DEVKITARM)),)
-
 $(error "Please set DEVKITARM in your environment.")
-
 endif
 
 include $(DEVKITARM)/gba_rules
 
-#---------------------------------------------------------------------------------
-
 TARGET := NECROROCK
 BUILD := build
+
 SOURCES := src
 INCLUDES := include
-
-#---------------------------------------------------------------------------------
 
 ARCH := -mthumb -mthumb-interwork
 
@@ -37,12 +26,8 @@ ASFLAGS := -g $(ARCH)
 
 LDFLAGS := -g $(ARCH) -Wl,-Map,$(notdir $@).map
 
-#---------------------------------------------------------------------------------
-
 LIBS := -lgba
 LIBDIRS := $(LIBGBA)
-
-#---------------------------------------------------------------------------------
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
@@ -54,16 +39,10 @@ export DEPSDIR := $(CURDIR)/$(BUILD)
 
 export PATH := $(DEVKITARM)/bin:$(PATH)
 
-endif
-
-#---------------------------------------------------------------------------------
-
 CFILES := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 SFILES := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 
 export OFILES := $(CFILES:.c=.o) $(SFILES:.s=.o)
-
-#---------------------------------------------------------------------------------
 
 export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 	$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
@@ -71,42 +50,24 @@ export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-#---------------------------------------------------------------------------------
-
 .PHONY: $(BUILD) clean
 
-#---------------------------------------------------------------------------------
-
 $(BUILD):
-
 	@[ -d $@ ] || mkdir -p $@
-
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
-#---------------------------------------------------------------------------------
-
 clean:
-
 	@echo clean ...
-
 	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).gba
-
-#---------------------------------------------------------------------------------
 
 else
 
-#---------------------------------------------------------------------------------
-
 DEPENDS := $(OFILES:.o=.d)
 
-#---------------------------------------------------------------------------------
+$(OUTPUT).gba: $(OUTPUT).elf
 
-$(OUTPUT).gba : $(OUTPUT).elf
-
-$(OUTPUT).elf : $(OFILES) $(LIBGBA)/lib/libgba.a
+$(OUTPUT).elf: $(OFILES) $(LIBGBA)/lib/libgba.a
 
 -include $(DEPENDS)
-
-#---------------------------------------------------------------------------------
 
 endif
