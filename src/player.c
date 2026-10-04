@@ -1,15 +1,19 @@
 #include <stdint.h>
+
 #include "../include/gba.h"
 
 #include "player.h"
 #include "input.h"
 #include "world.h"
 
-#define GRAVITY       1
-#define MAX_FALL_SPEED 6
+#define GRAVITY         1
+#define MAX_FALL_SPEED  6
 
-#define RUN_SPEED     2
-#define JUMP_SPEED   -8
+#define RUN_SPEED       2
+#define JUMP_SPEED     -8
+
+#define ATTACK_DURATION 10
+#define ATTACK_COOLDOWN 14
 
 static void move_horizontal(Player *p)
 {
@@ -46,10 +50,6 @@ static void move_vertical(Player *p)
 
     if (p->velocity_y > 0)
     {
-        /*
-           Falling onto a surface.
-        */
-
         while (world_collides(
             p->x,
             p->y + 1,
@@ -78,6 +78,15 @@ void player_init(Player *player)
 
     player->grounded = 0;
 
+    player->facing = 1;
+
+    player->attacking = 0;
+    player->attack_timer = 0;
+    player->attack_cooldown = 0;
+
+    player->hp = 5;
+    player->invulnerability_timer = 0;
+
     player->animation_frame = 0;
     player->animation_timer = 0;
 }
@@ -88,19 +97,48 @@ void player_update(Player *p)
     uint16_t pressed = input_pressed();
 
     /*
-       Horizontal movement
+       Attack.
+    */
+
+    if ((pressed & KEY_B) &&
+        p->attack_cooldown == 0)
+    {
+        p->attacking = 1;
+        p->attack_timer = ATTACK_DURATION;
+        p->attack_cooldown = ATTACK_COOLDOWN;
+    }
+
+    if (p->attack_timer > 0)
+    {
+        p->attack_timer--;
+
+        if (p->attack_timer == 0)
+            p->attacking = 0;
+    }
+
+    if (p->attack_cooldown > 0)
+        p->attack_cooldown--;
+
+    /*
+       Horizontal movement.
     */
 
     p->velocity_x = 0;
 
     if (keys & KEY_LEFT)
+    {
         p->velocity_x = -RUN_SPEED;
+        p->facing = -1;
+    }
 
     if (keys & KEY_RIGHT)
+    {
         p->velocity_x = RUN_SPEED;
+        p->facing = 1;
+    }
 
     /*
-       Jump
+       Jump.
     */
 
     if ((pressed & KEY_A) && p->grounded)
@@ -110,7 +148,7 @@ void player_update(Player *p)
     }
 
     /*
-       Gravity
+       Gravity.
     */
 
     if (p->velocity_y < MAX_FALL_SPEED)
@@ -120,7 +158,7 @@ void player_update(Player *p)
     move_vertical(p);
 
     /*
-       Animation timer
+       Animation.
     */
 
     if (p->velocity_x != 0)
@@ -141,6 +179,37 @@ void player_update(Player *p)
         p->animation_frame = 0;
         p->animation_timer = 0;
     }
+
+    if (p->invulnerability_timer > 0)
+        p->invulnerability_timer--;
+}
+
+int player_is_attacking(const Player *p)
+{
+    return p->attacking;
+}
+
+int player_attack_x(const Player *p)
+{
+    if (p->facing > 0)
+        return p->x + p->width;
+
+    return p->x - 20;
+}
+
+int player_attack_y(const Player *p)
+{
+    return p->y + 7;
+}
+
+int player_attack_width(const Player *p)
+{
+    return 20;
+}
+
+int player_attack_height(const Player *p)
+{
+    return 14;
 }
 
 void player_draw(
@@ -156,9 +225,21 @@ void player_draw(
     uint16_t hair   = RGB15(4, 3, 3);
     uint16_t boot   = RGB15(2, 2, 2);
     uint16_t red    = RGB15(18, 3, 4);
+    uint16_t weapon = RGB15(18, 16, 12);
 
     /*
-       Head
+       Flash during invulnerability.
+    */
+
+    if (p->invulnerability_timer > 0 &&
+        (p->invulnerability_timer & 2))
+    {
+        skin = RGB15(31, 31, 31);
+        jacket = RGB15(31, 31, 31);
+    }
+
+    /*
+       Head.
     */
 
     gba_rect(
@@ -170,7 +251,7 @@ void player_draw(
     );
 
     /*
-       Hair
+       Hair.
     */
 
     gba_rect(
@@ -190,7 +271,7 @@ void player_draw(
     );
 
     /*
-       Jacket/body
+       Jacket.
     */
 
     gba_rect(
@@ -202,7 +283,7 @@ void player_draw(
     );
 
     /*
-       Shirt detail
+       Shirt.
     */
 
     gba_rect(
@@ -214,7 +295,7 @@ void player_draw(
     );
 
     /*
-       Arms
+       Arms.
     */
 
     gba_rect(
@@ -234,7 +315,7 @@ void player_draw(
     );
 
     /*
-       Legs
+       Legs.
     */
 
     int leg_offset = 0;
@@ -265,7 +346,7 @@ void player_draw(
     );
 
     /*
-       Boots
+       Boots.
     */
 
     gba_rect(
@@ -283,4 +364,34 @@ void player_draw(
         2,
         boot
     );
+
+    /*
+       Attack weapon.
+    */
+
+    if (p->attacking)
+    {
+        int weapon_x;
+
+        if (p->facing > 0)
+            weapon_x = x + p->width;
+        else
+            weapon_x = x - 20;
+
+        gba_rect(
+            weapon_x,
+            y + 9,
+            20,
+            3,
+            weapon
+        );
+
+        gba_rect(
+            weapon_x + (p->facing > 0 ? 17 : 0),
+            y + 5,
+            3,
+            11,
+            weapon
+        );
+    }
 }
