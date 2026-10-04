@@ -14,6 +14,15 @@ typedef struct
 
     int grounded;
 
+    int facing;
+
+    int attacking;
+    int attack_timer;
+    int attack_cooldown;
+
+    int hp;
+    int invulnerability_timer;
+
     int animation_frame;
     int animation_timer;
 } Player;
@@ -26,5 +35,15 @@ void player_draw(
     const Player *player,
     int camera_x
 );
+
+int player_is_attacking(const Player *player);
+
+int player_attack_x(const Player *player);
+
+int player_attack_y(const Player *player);
+
+int player_attack_width(const Player *player);
+
+int player_attack_height(const Player *player);
 
 #endif
