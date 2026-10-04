@@ -16,15 +16,15 @@ ARCH := -mthumb -mthumb-interwork
 
 CFLAGS := -g -Wall -O2 \
 	-mcpu=arm7tdmi -mtune=arm7tdmi \
-	-fomit-frame-pointer \
-	-ffast-math \
+	-ffunction-sections -fdata-sections \
 	$(ARCH)
 
 CFLAGS += $(INCLUDE)
 
 ASFLAGS := -g $(ARCH)
 
-LDFLAGS := -g -Wl,-Map,$(notdir $@).map
+LDFLAGS = -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+
 LIBS := -lgba
 LIBDIRS := $(LIBGBA)
 
@@ -48,6 +48,9 @@ export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 	-I$(CURDIR)/$(BUILD)
 
 export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
+
+# IMPORTANT: use the GCC driver for linking, not raw ld.
+export LD := $(CC)
 
 .PHONY: $(BUILD) clean
 
