@@ -1,62 +1,112 @@
+#---------------------------------------------------------------------------------
 # NECROROCK - Game Boy Advance
-# Proper devkitARM GBA build
+#---------------------------------------------------------------------------------
+
+.SUFFIXES:
+
+#---------------------------------------------------------------------------------
 
 ifeq ($(strip $(DEVKITARM)),)
+
 $(error "Please set DEVKITARM in your environment.")
+
 endif
 
 include $(DEVKITARM)/gba_rules
 
-TARGET := NECROROCK
+#---------------------------------------------------------------------------------
 
+TARGET := NECROROCK
 BUILD := build
 SOURCES := src
 INCLUDES := include
 
+#---------------------------------------------------------------------------------
+
 ARCH := -mthumb -mthumb-interwork
 
 CFLAGS := -g -Wall -O2 \
-          -mcpu=arm7tdmi -mtune=arm7tdmi \
-          -ffast-math \
-          $(ARCH)
+	-mcpu=arm7tdmi -mtune=arm7tdmi \
+	-fomit-frame-pointer \
+	-ffast-math \
+	$(ARCH)
 
 CFLAGS += $(INCLUDE)
 
 ASFLAGS := -g $(ARCH)
 
-LDFLAGS := -g $(ARCH) -Wl,-Map,$(TARGET).map
+LDFLAGS := -g $(ARCH) -Wl,-Map,$(notdir $@).map
+
+#---------------------------------------------------------------------------------
+
+LIBS := -lgba
+LIBDIRS := $(LIBGBA)
+
+#---------------------------------------------------------------------------------
+
+ifneq ($(BUILD),$(notdir $(CURDIR)))
+
+export OUTPUT := $(CURDIR)/$(TARGET)
+
+export VPATH := $(foreach dir,$(SOURCES),$(CURDIR)/$(dir))
 
 export DEPSDIR := $(CURDIR)/$(BUILD)
+
+export PATH := $(DEVKITARM)/bin:$(PATH)
+
+endif
+
+#---------------------------------------------------------------------------------
 
 CFILES := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 SFILES := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 
 export OFILES := $(CFILES:.c=.o) $(SFILES:.s=.o)
 
-export INCLUDE := \
-    $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
-    -I$(CURDIR)/$(BUILD)
+#---------------------------------------------------------------------------------
 
-.PHONY: all clean
+export INCLUDE := $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
+	$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
+	-I$(CURDIR)/$(BUILD)
 
-all: $(TARGET).gba
+export LIBPATHS := $(foreach dir,$(LIBDIRS),-L$(dir)/lib)
+
+#---------------------------------------------------------------------------------
+
+.PHONY: $(BUILD) clean
+
+#---------------------------------------------------------------------------------
 
 $(BUILD):
+
 	@[ -d $@ ] || mkdir -p $@
+
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
+#---------------------------------------------------------------------------------
+
 clean:
-	@echo "Cleaning..."
-	@rm -rf $(BUILD) $(TARGET).elf $(TARGET).gba $(TARGET).map
+
+	@echo clean ...
+
+	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).gba
+
+#---------------------------------------------------------------------------------
 
 else
 
+#---------------------------------------------------------------------------------
+
 DEPENDS := $(OFILES:.o=.d)
 
-$(TARGET).gba: $(TARGET).elf
+#---------------------------------------------------------------------------------
 
-$(TARGET).elf: $(OFILES)
+$(OUTPUT).gba : $(OUTPUT).elf
+
+$(OUTPUT).elf : $(OFILES) $(LIBGBA)/lib/libgba.a
 
 -include $(DEPENDS)
+
+#---------------------------------------------------------------------------------
 
 endif
