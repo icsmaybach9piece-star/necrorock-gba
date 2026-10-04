@@ -1,0 +1,35 @@
+name: Build NECROROCK GBA
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ARM GBA toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-arm-none-eabi \
+            binutils-arm-none-eabi
+
+      - name: Build ROM
+        run: |
+          make
+
+      - name: Show ROM information
+        run: |
+          ls -lh NECROROCK.gba
+          file NECROROCK.gba
+
+      - name: Upload GBA ROM
+        uses: actions/upload-artifact@v4
+        with:
+          name: NECROROCK-GBA
+          path: NECROROCK.gba
