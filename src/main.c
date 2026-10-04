@@ -116,7 +116,7 @@ int main(void)
                 player_x--;
 
             if (k & KEY_RIGHT)
-                player_x--;
+                player_x++;
 
             if (k & KEY_UP)
                 player_y--;
