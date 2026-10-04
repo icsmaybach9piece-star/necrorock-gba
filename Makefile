@@ -1,27 +1,62 @@
+# NECROROCK - Game Boy Advance
+# Proper devkitARM GBA build
+
+ifeq ($(strip $(DEVKITARM)),)
+$(error "Please set DEVKITARM in your environment.")
+endif
+
+include $(DEVKITARM)/gba_rules
+
 TARGET := NECROROCK
 
-CC := arm-none-eabi-gcc
-OBJCOPY := arm-none-eabi-objcopy
+BUILD := build
+SOURCES := src
+INCLUDES := include
 
-CFLAGS := -mthumb -mthumb-interwork -mcpu=arm7tdmi \
-          -O2 -ffreestanding -fno-common \
-          -Wall -Wextra
+ARCH := -mthumb -mthumb-interwork
 
-LDFLAGS := -mthumb -mthumb-interwork -mcpu=arm7tdmi \
-           -specs=nosys.specs \
-           -nostartfiles
+CFLAGS := -g -Wall -O2 \
+          -mcpu=arm7tdmi -mtune=arm7tdmi \
+          -ffast-math \
+          $(ARCH)
 
-SRC := src/main.c
+CFLAGS += $(INCLUDE)
+
+ASFLAGS := -g $(ARCH)
+
+LDFLAGS := -g $(ARCH) -Wl,-Map,$(TARGET).map
+
+export DEPSDIR := $(CURDIR)/$(BUILD)
+
+CFILES := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
+SFILES := $(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
+
+export OFILES := $(CFILES:.c=.o) $(SFILES:.s=.o)
+
+export INCLUDE := \
+    $(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
+    -I$(CURDIR)/$(BUILD)
+
+.PHONY: all clean
 
 all: $(TARGET).gba
 
-$(TARGET).elf: $(SRC)
-	$(CC) $(CFLAGS) $(LDFLAGS) \
-		-Ttext=0x08000000 \
-		-o $@ $(SRC)
-
-$(TARGET).gba: $(TARGET).elf
-	$(OBJCOPY) -O binary $< $@
+$(BUILD):
+	@[ -d $@ ] || mkdir -p $@
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 clean:
-	rm -f $(TARGET).elf $(TARGET).gba
+	@echo "Cleaning..."
+	@rm -rf $(BUILD) $(TARGET).elf $(TARGET).gba $(TARGET).map
+
+else
+
+DEPENDS := $(OFILES:.o=.d)
+
+$(TARGET).gba: $(TARGET).elf
+
+$(TARGET).elf: $(OFILES)
+
+-include $(DEPENDS)
+
+endif
