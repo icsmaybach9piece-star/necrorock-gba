@@ -25,7 +25,6 @@ jobs:
       - name: Check ROM
         run: |
           ls -lh NECROROCK.gba
-          file NECROROCK.gba
 
       - name: Upload ROM
         uses: actions/upload-artifact@v4
