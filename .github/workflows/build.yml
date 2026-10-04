@@ -8,25 +8,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    container:
+      image: devkitpro/devkitarm:latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install devkitARM
-        uses: devkitPro/gh-release@v1
-        with:
-          release: latest
-          package: gba-dev
-
       - name: Build GBA ROM
-        shell: bash
         run: |
           export DEVKITPRO=/opt/devkitpro
-          export DEVKITARM=$DEVKITPRO/devkitARM
-          export PATH=$DEVKITARM/bin:$DEVKITPRO/tools/bin:$PATH
+          export DEVKITARM=/opt/devkitpro/devkitARM
+          export PATH=$DEVKITPRO/tools/bin:$DEVKITARM/bin:$PATH
           make
 
-      - name: Show ROM
+      - name: Check ROM
         run: |
           ls -lh NECROROCK.gba
           file NECROROCK.gba
