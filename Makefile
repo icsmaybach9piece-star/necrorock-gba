@@ -24,8 +24,7 @@ CFLAGS += $(INCLUDE)
 
 ASFLAGS := -g $(ARCH)
 
-LDFLAGS := -g $(ARCH) -Wl,-Map,$(notdir $@).map
-
+LDFLAGS := -g -Wl,-Map,$(notdir $@).map
 LIBS := -lgba
 LIBDIRS := $(LIBGBA)
 
