@@ -8,14 +8,14 @@
 #include "sprite.h"
 #include "iggy_sprite.h"
 
-#define GRAVITY         1
-#define MAX_FALL_SPEED  6
+#define GRAVITY          1
+#define MAX_FALL_SPEED   6
 
-#define RUN_SPEED       2
-#define JUMP_SPEED     -8
+#define RUN_SPEED        2
+#define JUMP_SPEED      -8
 
-#define ATTACK_DURATION 10
-#define ATTACK_COOLDOWN 14
+#define ATTACK_DURATION  10
+#define ATTACK_COOLDOWN  14
 
 static void move_horizontal(Player *p)
 {
@@ -52,6 +52,11 @@ static void move_vertical(Player *p)
 
     if (p->velocity_y > 0)
     {
+        /*
+           Move upward until the player is
+           exactly above the surface.
+        */
+
         while (world_collides(
             p->x,
             p->y + 1,
@@ -72,6 +77,14 @@ void player_init(Player *player)
     player->x = 40;
     player->y = 80;
 
+    /*
+       Gameplay collision box.
+
+       This is intentionally smaller than the
+       visual sprite. The sprite is 32x40 while
+       the collision body remains 16x28.
+    */
+
     player->width = 16;
     player->height = 28;
 
@@ -80,14 +93,32 @@ void player_init(Player *player)
 
     player->grounded = 0;
 
+    /*
+       Facing:
+       1  = right
+       -1 = left
+    */
+
     player->facing = 1;
+
+    /*
+       Attack state.
+    */
 
     player->attacking = 0;
     player->attack_timer = 0;
     player->attack_cooldown = 0;
 
+    /*
+       Player health.
+    */
+
     player->hp = 5;
     player->invulnerability_timer = 0;
+
+    /*
+       Walking animation.
+    */
 
     player->animation_frame = 0;
     player->animation_timer = 0;
@@ -99,7 +130,9 @@ void player_update(Player *p)
     uint16_t pressed = input_pressed();
 
     /*
-       Attack.
+       --------------------------------
+       ATTACK
+       --------------------------------
     */
 
     if ((pressed & KEY_B) &&
@@ -122,7 +155,9 @@ void player_update(Player *p)
         p->attack_cooldown--;
 
     /*
-       Horizontal movement.
+       --------------------------------
+       HORIZONTAL MOVEMENT
+       --------------------------------
     */
 
     p->velocity_x = 0;
@@ -140,27 +175,40 @@ void player_update(Player *p)
     }
 
     /*
-       Jump.
+       --------------------------------
+       JUMP
+       --------------------------------
     */
 
-    if ((pressed & KEY_A) && p->grounded)
+    if ((pressed & KEY_A) &&
+        p->grounded)
     {
         p->velocity_y = JUMP_SPEED;
         p->grounded = 0;
     }
 
     /*
-       Gravity.
+       --------------------------------
+       GRAVITY
+       --------------------------------
     */
 
     if (p->velocity_y < MAX_FALL_SPEED)
         p->velocity_y += GRAVITY;
 
+    /*
+       --------------------------------
+       COLLISION / MOVEMENT
+       --------------------------------
+    */
+
     move_horizontal(p);
     move_vertical(p);
 
     /*
-       Animation.
+       --------------------------------
+       WALKING ANIMATION
+       --------------------------------
     */
 
     if (p->velocity_x != 0)
@@ -182,9 +230,21 @@ void player_update(Player *p)
         p->animation_timer = 0;
     }
 
+    /*
+       --------------------------------
+       INVULNERABILITY TIMER
+       --------------------------------
+    */
+
     if (p->invulnerability_timer > 0)
         p->invulnerability_timer--;
 }
+
+/*
+   --------------------------------
+   ATTACK COLLISION
+   --------------------------------
+*/
 
 int player_is_attacking(const Player *p)
 {
@@ -214,18 +274,39 @@ int player_attack_height(const Player *p)
     return 14;
 }
 
+/*
+   --------------------------------
+   DRAW PLAYER
+   --------------------------------
+*/
+
 void player_draw(
     const Player *p,
     int camera_x
 )
 {
-    int x = p->x - camera_x;
-    int y = p->y - 2;
+    /*
+       World position -> screen position.
+    */
 
-    const uint8_t *sprite;
+    int x = p->x - camera_x;
 
     /*
-       Select animation frame.
+       The 32x40 visual sprite extends
+       above the 16x28 collision body.
+
+       Offset keeps the feet aligned with
+       the gameplay collision box.
+    */
+
+    int y = p->y - 12;
+
+    const char *sprite;
+
+    /*
+       --------------------------------
+       SELECT SPRITE
+       --------------------------------
     */
 
     if (p->attacking)
@@ -246,20 +327,25 @@ void player_draw(
     }
 
     /*
-       Draw the 16x16 source sprite at 2x.
+       --------------------------------
+       DRAW 16x20 SOURCE
+       AT 2x = 32x40 PIXELS
+       --------------------------------
     */
 
     sprite_draw(
         sprite,
         16,
-        16,
+        20,
         x - 8,
         y,
         2
     );
 
     /*
-       Attack effect.
+       --------------------------------
+       ATTACK EFFECT
+       --------------------------------
     */
 
     if (p->attacking)
@@ -269,14 +355,14 @@ void player_draw(
         if (p->facing > 0)
             slash_x = x + 24;
         else
-            slash_x = x - 24;
+            slash_x = x - 32;
 
         gba_rect(
             slash_x,
-            y + 14,
+            y + 18,
             8,
             2,
-            RGB15(25, 23, 18)
+            RGB15(27, 25, 20)
         );
     }
 }
