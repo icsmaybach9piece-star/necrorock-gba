@@ -3,33 +3,33 @@
 #include "../include/gba.h"
 #include "sprite.h"
 
-static uint16_t palette_color(uint8_t index)
+static uint16_t palette_color(char c)
 {
-    switch (index)
+    switch (c)
     {
-        case SPRITE_SKIN:
-            return RGB15(22, 10, 8);
+        /* Bare skin / torso */
+        case 'S':
+            return RGB15(24, 14, 10);
 
-        case SPRITE_HAIR:
-            return RGB15(2, 2, 2);
+        /* Blonde hair */
+        case 'Y':
+            return RGB15(31, 24, 8);
 
-        case SPRITE_JACKET:
-            return RGB15(6, 6, 7);
+        /* Dark pants */
+        case 'J':
+            return RGB15(3, 3, 4);
 
-        case SPRITE_RED:
-            return RGB15(22, 3, 4);
+        /* Red punk accent */
+        case 'R':
+            return RGB15(28, 4, 5);
 
-        case SPRITE_BOOT:
-            return RGB15(1, 1, 1);
+        /* Boots */
+        case 'B':
+            return RGB15(1, 1, 2);
 
-        case SPRITE_METAL:
-            return RGB15(12, 13, 14);
-
-        case SPRITE_EYE:
-            return RGB15(31, 2, 3);
-
-        case SPRITE_WHITE:
-            return RGB15(28, 28, 26);
+        /* Highlight */
+        case 'W':
+            return RGB15(31, 31, 28);
 
         default:
             return RGB15(0, 0, 0);
@@ -37,7 +37,7 @@ static uint16_t palette_color(uint8_t index)
 }
 
 void sprite_draw(
-    const uint8_t *sprite,
+    const char *sprite,
     int width,
     int height,
     int x,
@@ -45,16 +45,25 @@ void sprite_draw(
     int scale
 )
 {
+    if (sprite == 0)
+        return;
+
+    if (scale < 1)
+        scale = 1;
+
     for (int py = 0; py < height; ++py)
     {
         for (int px = 0; px < width; ++px)
         {
-            uint8_t value = sprite[py * width + px];
+            char pixel = sprite[py * width + px];
 
-            if (value == SPRITE_TRANSPARENT)
+            /*
+             * Periods are transparent.
+             */
+            if (pixel == '.')
                 continue;
 
-            uint16_t color = palette_color(value);
+            uint16_t color = palette_color(pixel);
 
             for (int sy = 0; sy < scale; ++sy)
             {
