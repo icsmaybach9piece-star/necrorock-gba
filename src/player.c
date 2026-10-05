@@ -5,6 +5,8 @@
 #include "player.h"
 #include "input.h"
 #include "world.h"
+#include "sprite.h"
+#include "iggy_sprite.h"
 
 #define GRAVITY         1
 #define MAX_FALL_SPEED  6
@@ -218,180 +220,63 @@ void player_draw(
 )
 {
     int x = p->x - camera_x;
-    int y = p->y;
+    int y = p->y - 2;
 
-    uint16_t skin   = RGB15(20, 8, 5);
-    uint16_t jacket = RGB15(7, 7, 7);
-    uint16_t hair   = RGB15(4, 3, 3);
-    uint16_t boot   = RGB15(2, 2, 2);
-    uint16_t red    = RGB15(18, 3, 4);
-    uint16_t weapon = RGB15(18, 16, 12);
+    const uint8_t *sprite;
 
     /*
-       Flash during invulnerability.
-    */
-
-    if (p->invulnerability_timer > 0 &&
-        (p->invulnerability_timer & 2))
-    {
-        skin = RGB15(31, 31, 31);
-        jacket = RGB15(31, 31, 31);
-    }
-
-    /*
-       Head.
-    */
-
-    gba_rect(
-        x + 4,
-        y,
-        9,
-        8,
-        skin
-    );
-
-    /*
-       Hair.
-    */
-
-    gba_rect(
-        x + 2,
-        y - 2,
-        13,
-        4,
-        hair
-    );
-
-    gba_rect(
-        x + 1,
-        y + 1,
-        4,
-        8,
-        hair
-    );
-
-    /*
-       Jacket.
-    */
-
-    gba_rect(
-        x + 2,
-        y + 8,
-        13,
-        13,
-        jacket
-    );
-
-    /*
-       Shirt.
-    */
-
-    gba_rect(
-        x + 7,
-        y + 9,
-        3,
-        8,
-        red
-    );
-
-    /*
-       Arms.
-    */
-
-    gba_rect(
-        x,
-        y + 10,
-        3,
-        11,
-        jacket
-    );
-
-    gba_rect(
-        x + 15,
-        y + 10,
-        3,
-        11,
-        jacket
-    );
-
-    /*
-       Legs.
-    */
-
-    int leg_offset = 0;
-
-    if (p->velocity_x != 0)
-    {
-        if (p->animation_frame == 1)
-            leg_offset = 2;
-
-        if (p->animation_frame == 3)
-            leg_offset = -2;
-    }
-
-    gba_rect(
-        x + 4 + leg_offset,
-        y + 21,
-        4,
-        7,
-        jacket
-    );
-
-    gba_rect(
-        x + 11 - leg_offset,
-        y + 21,
-        4,
-        7,
-        jacket
-    );
-
-    /*
-       Boots.
-    */
-
-    gba_rect(
-        x + 3 + leg_offset,
-        y + 27,
-        6,
-        2,
-        boot
-    );
-
-    gba_rect(
-        x + 10 - leg_offset,
-        y + 27,
-        6,
-        2,
-        boot
-    );
-
-    /*
-       Attack weapon.
+       Select animation frame.
     */
 
     if (p->attacking)
     {
-        int weapon_x;
+        sprite = iggy_attack;
+    }
+    else if (p->velocity_x == 0)
+    {
+        sprite = iggy_idle;
+    }
+    else if (p->animation_frame & 1)
+    {
+        sprite = iggy_walk_1;
+    }
+    else
+    {
+        sprite = iggy_walk_2;
+    }
+
+    /*
+       Draw the 16x16 source sprite at 2x.
+    */
+
+    sprite_draw(
+        sprite,
+        16,
+        16,
+        x - 8,
+        y,
+        2
+    );
+
+    /*
+       Attack effect.
+    */
+
+    if (p->attacking)
+    {
+        int slash_x;
 
         if (p->facing > 0)
-            weapon_x = x + p->width;
+            slash_x = x + 24;
         else
-            weapon_x = x - 20;
+            slash_x = x - 24;
 
         gba_rect(
-            weapon_x,
-            y + 9,
-            20,
-            3,
-            weapon
-        );
-
-        gba_rect(
-            weapon_x + (p->facing > 0 ? 17 : 0),
-            y + 5,
-            3,
-            11,
-            weapon
+            slash_x,
+            y + 14,
+            8,
+            2,
+            RGB15(25, 23, 18)
         );
     }
 }
