@@ -7,32 +7,44 @@ static uint16_t palette_color(char c)
 {
     switch (c)
     {
-        /* Bare skin / torso */
+        /* Skin */
         case 'S':
-            return RGB15(24, 14, 10);
+            return RGB15(25, 15, 11);
+
+        /* Skin shadow */
+        case 's':
+            return RGB15(18, 9, 7);
 
         /* Blonde hair */
         case 'Y':
-            return RGB15(31, 24, 8);
+            return RGB15(31, 25, 9);
 
-        /* Dark pants */
+        /* Hair shadow */
+        case 'y':
+            return RGB15(22, 16, 5);
+
+        /* Pants */
         case 'J':
             return RGB15(3, 3, 4);
 
-        /* Red punk accent */
-        case 'R':
-            return RGB15(28, 4, 5);
+        /* Pants highlight */
+        case 'j':
+            return RGB15(7, 7, 8);
 
         /* Boots */
         case 'B':
             return RGB15(1, 1, 2);
 
-        /* Highlight */
+        /* Red punk accent */
+        case 'R':
+            return RGB15(27, 4, 5);
+
+        /* Bright highlight */
         case 'W':
-            return RGB15(31, 31, 28);
+            return RGB15(31, 30, 25);
 
         default:
-            return RGB15(0, 0, 0);
+            return 0;
     }
 }
 
@@ -57,9 +69,6 @@ void sprite_draw(
         {
             char pixel = sprite[py * width + px];
 
-            /*
-             * Periods are transparent.
-             */
             if (pixel == '.')
                 continue;
 
