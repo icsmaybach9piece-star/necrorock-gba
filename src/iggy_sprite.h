@@ -1,11 +1,9 @@
 #ifndef IGGY_SPRITE_H
 #define IGGY_SPRITE_H
 
-#include <stdint.h>
-
-extern const uint8_t iggy_idle[];
-extern const uint8_t iggy_walk_1[];
-extern const uint8_t iggy_walk_2[];
-extern const uint8_t iggy_attack[];
+extern const char iggy_idle[];
+extern const char iggy_walk_1[];
+extern const char iggy_walk_2[];
+extern const char iggy_attack[];
 
 #endif
