@@ -17,18 +17,11 @@
 #define ATTACK_DURATION  10
 #define ATTACK_COOLDOWN  14
 
-
 static void move_horizontal(Player *p)
 {
     int next_x =
         p->x + p->velocity_x;
 
-    /*
-        Horizontal movement only checks fully-solid
-        geometry.
-
-        One-way platforms do NOT block Iggy from the side.
-    */
     if (!world_collides(
             next_x,
             p->y,
@@ -43,17 +36,11 @@ static void move_horizontal(Player *p)
     }
 }
 
-
 static void move_vertical(Player *p)
 {
     int next_y =
         p->y + p->velocity_y;
 
-
-    /*
-        Ask the world whether the vertical movement crosses
-        a solid surface or the top of a one-way platform.
-    */
     int surface_y =
         world_vertical_collision(
             p->x,
@@ -64,10 +51,6 @@ static void move_vertical(Player *p)
             p->velocity_y
         );
 
-
-    /*
-        No collision.
-    */
     if (surface_y < 0)
     {
         p->y = next_y;
@@ -75,10 +58,6 @@ static void move_vertical(Player *p)
         return;
     }
 
-
-    /*
-        Landing on a surface while falling.
-    */
     if (p->velocity_y > 0)
     {
         p->y =
@@ -90,32 +69,50 @@ static void move_vertical(Player *p)
         return;
     }
 
-
-    /*
-        Hitting the underside of a completely solid object
-        while moving upward.
-
-        One-way platforms never reach this point.
-    */
     if (p->velocity_y < 0)
     {
         p->y =
             surface_y;
 
         p->velocity_y = 0;
-
         p->grounded = 0;
 
         return;
     }
 
-
-    /*
-        Stationary collision safety.
-    */
     p->velocity_y = 0;
 }
 
+static void set_attack_direction(Player *p, uint16_t keys)
+{
+    int dx = 0;
+    int dy = 0;
+
+    if (keys & KEY_LEFT)
+        dx = -1;
+
+    if (keys & KEY_RIGHT)
+        dx = 1;
+
+    if (keys & KEY_UP)
+        dy = -1;
+
+    if (keys & KEY_DOWN)
+        dy = 1;
+
+    /*
+        If no direction is held, attack in the direction Iggy
+        is facing. This preserves the original control scheme.
+    */
+    if (dx == 0 && dy == 0)
+        dx = p->facing;
+
+    p->attack_dir_x = dx;
+    p->attack_dir_y = dy;
+
+    if (dx != 0)
+        p->facing = dx;
+}
 
 void player_init(Player *player)
 {
@@ -136,13 +133,15 @@ void player_init(Player *player)
     player->attack_timer = 0;
     player->attack_cooldown = 0;
 
+    player->attack_dir_x = 1;
+    player->attack_dir_y = 0;
+
     player->hp = 5;
     player->invulnerability_timer = 0;
 
     player->animation_frame = 0;
     player->animation_timer = 0;
 }
-
 
 void player_update(Player *p)
 {
@@ -152,21 +151,15 @@ void player_update(Player *p)
     uint16_t pressed =
         input_pressed();
 
-
-    /*
-        --------------------------------------------------------
-        ATTACK
-        --------------------------------------------------------
-    */
-
     if ((pressed & KEY_B) &&
         p->attack_cooldown == 0)
     {
+        set_attack_direction(p, keys);
+
         p->attacking = 1;
         p->attack_timer = ATTACK_DURATION;
         p->attack_cooldown = ATTACK_COOLDOWN;
     }
-
 
     if (p->attack_timer > 0)
     {
@@ -176,19 +169,10 @@ void player_update(Player *p)
             p->attacking = 0;
     }
 
-
     if (p->attack_cooldown > 0)
         p->attack_cooldown--;
 
-
-    /*
-        --------------------------------------------------------
-        HORIZONTAL INPUT
-        --------------------------------------------------------
-    */
-
     p->velocity_x = 0;
-
 
     if (keys & KEY_LEFT)
     {
@@ -196,19 +180,11 @@ void player_update(Player *p)
         p->facing = -1;
     }
 
-
     if (keys & KEY_RIGHT)
     {
         p->velocity_x = RUN_SPEED;
         p->facing = 1;
     }
-
-
-    /*
-        --------------------------------------------------------
-        JUMP
-        --------------------------------------------------------
-    */
 
     if ((pressed & KEY_A) &&
         p->grounded)
@@ -217,32 +193,11 @@ void player_update(Player *p)
         p->grounded = 0;
     }
 
-
-    /*
-        --------------------------------------------------------
-        GRAVITY
-        --------------------------------------------------------
-    */
-
     if (p->velocity_y < MAX_FALL_SPEED)
         p->velocity_y += GRAVITY;
 
-
-    /*
-        --------------------------------------------------------
-        MOVEMENT
-        --------------------------------------------------------
-    */
-
     move_horizontal(p);
     move_vertical(p);
-
-
-    /*
-        --------------------------------------------------------
-        WALK ANIMATION
-        --------------------------------------------------------
-    */
 
     if (p->velocity_x != 0)
     {
@@ -263,50 +218,55 @@ void player_update(Player *p)
         p->animation_timer = 0;
     }
 
-
-    /*
-        --------------------------------------------------------
-        INVULNERABILITY
-        --------------------------------------------------------
-    */
-
     if (p->invulnerability_timer > 0)
         p->invulnerability_timer--;
 }
-
 
 int player_is_attacking(const Player *p)
 {
     return p->attacking;
 }
 
-
 int player_attack_x(const Player *p)
 {
-    if (p->facing > 0)
+    if (p->attack_dir_x < 0)
+        return p->x - 20;
+
+    if (p->attack_dir_x > 0)
         return p->x + p->width;
 
-    return p->x - 20;
+    /*
+        Vertical attacks are centered on Iggy.
+    */
+    return p->x - 2;
 }
-
 
 int player_attack_y(const Player *p)
 {
+    if (p->attack_dir_y < 0)
+        return p->y - 20;
+
+    if (p->attack_dir_y > 0)
+        return p->y + p->height;
+
     return p->y + 7;
 }
 
-
 int player_attack_width(const Player *p)
 {
+    if (p->attack_dir_x == 0)
+        return 20;
+
     return 20;
 }
 
-
 int player_attack_height(const Player *p)
 {
+    if (p->attack_dir_y != 0)
+        return 20;
+
     return 14;
 }
-
 
 void player_draw(
     const Player *p,
@@ -319,9 +279,7 @@ void player_draw(
     int screen_y =
         p->y - 12;
 
-
     const char *sprite;
-
 
     if (p->attacking)
     {
@@ -340,7 +298,6 @@ void player_draw(
         sprite = iggy_walk_2;
     }
 
-
     sprite_draw(
         sprite,
         16,
@@ -350,28 +307,70 @@ void player_draw(
         2
     );
 
-
-    /*
-        Attack slash.
-    */
-
     if (p->attacking)
     {
         int slash_x;
+        int slash_y;
+        int slash_w = 8;
+        int slash_h = 2;
 
-
-        if (p->facing > 0)
+        /*
+            The current slash is deliberately simple, but its
+            position now follows all eight attack directions.
+            The sprite animation can be upgraded later without
+            changing combat collision.
+        */
+        if (p->attack_dir_x > 0)
+        {
             slash_x = screen_x + 24;
-        else
+            slash_y = screen_y + 18;
+
+            gba_rect(
+                slash_x,
+                slash_y,
+                slash_w,
+                slash_h,
+                RGB15(31, 28, 20)
+            );
+        }
+        else if (p->attack_dir_x < 0)
+        {
             slash_x = screen_x - 32;
+            slash_y = screen_y + 18;
 
+            gba_rect(
+                slash_x,
+                slash_y,
+                slash_w,
+                slash_h,
+                RGB15(31, 28, 20)
+            );
+        }
+        else if (p->attack_dir_y < 0)
+        {
+            slash_x = screen_x + 8;
+            slash_y = screen_y - 10;
 
-        gba_rect(
-            slash_x,
-            screen_y + 18,
-            8,
-            2,
-            RGB15(31, 28, 20)
-        );
+            gba_rect(
+                slash_x,
+                slash_y,
+                slash_h,
+                slash_w,
+                RGB15(31, 28, 20)
+            );
+        }
+        else
+        {
+            slash_x = screen_x + 8;
+            slash_y = screen_y + 42;
+
+            gba_rect(
+                slash_x,
+                slash_y,
+                slash_h,
+                slash_w,
+                RGB15(31, 28, 20)
+            );
+        }
     }
 }
