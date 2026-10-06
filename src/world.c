@@ -6,110 +6,124 @@
 
 static GameState *game_state;
 
+
+/*
+    ============================================================
+    WORLD GEOMETRY
+    ============================================================
+*/
+
 static const Solid solids[] =
 {
-    /* Main floor */
-    {    0, 136, 1920, 24 },
+    /*
+        Main floor.
+        Completely solid.
+    */
+    { 0, 136, 1920, 24, 0 },
 
-    /* =========================================================
-       NECRO-CHAPEL
-       ========================================================= */
 
-    {   45, 108, 100, 10 },
-    {  210,  92, 100, 10 },
+    /*
+        ========================================================
+        NECRO-CHAPEL
+        ========================================================
+    */
+
+    {  45, 108, 100, 10, 1 },
+
+    /*
+        Small low platform.
+        One-way, so it cannot become a jump ceiling.
+    */
+    { 210, 112, 60, 10, 1 },
 
     /*
         Secret route.
-
-        The lower platform is high enough to be interesting,
-        but low enough to reach comfortably from the floor.
-
-        The upper platform is deliberately separated vertically
-        so Iggy can jump onto it without the lower platform
-        blocking the jump.
     */
-    {  300, 110, 55, 10 },
-    {  300,  82, 55, 10 },
+    { 300, 110, 55, 10, 1 },
+    { 300,  82, 55, 10, 1 },
 
-    /* =========================================================
-       BONE TUNNELS
-       ========================================================= */
 
-    {  410, 105, 120, 10 },
-    {  575,  82, 110, 10 },
-    {  690, 110,  50, 10 },
+    /*
+        ========================================================
+        BONE TUNNELS
+        ========================================================
+    */
 
-    {  470,  55,  55, 10 },
+    { 410, 105, 120, 10, 1 },
+    { 575,  82, 110, 10, 1 },
+    { 690, 110,  50, 10, 1 },
 
-    /* =========================================================
-       CATACOMBS
-       ========================================================= */
+    { 470,  55,  55, 10, 1 },
 
-    {  785, 105, 100, 10 },
-    {  925,  78,  80, 10 },
-    { 1045,  52,  65, 10 },
 
-    {  830,  48,  45, 10 },
+    /*
+        ========================================================
+        CATACOMBS
+        ========================================================
+    */
 
-    /* =========================================================
-       ORGAN WORKS
-       ========================================================= */
+    { 785, 105, 100, 10, 1 },
+    { 925,  78,  80, 10, 1 },
+    {1045,  52,  65, 10, 1 },
 
-    { 1175, 110, 100, 10 },
-    { 1310,  88, 110, 10 },
-    { 1450, 112,  65, 10 },
+    { 830,  48,  45, 10, 1 },
 
-    { 1220,  55,  50, 10 },
-    { 1380,  48,  60, 10 },
 
-    /* =========================================================
-       FLESH PIT
-       ========================================================= */
+    /*
+        ========================================================
+        ORGAN WORKS
+        ========================================================
+    */
 
-    { 1550, 105, 100, 10 },
-    { 1690,  78, 100, 10 },
-    { 1810, 100,  75, 10 },
+    {1175, 110, 100, 10, 1 },
+    {1310,  88, 110, 10, 1 },
+    {1450, 112,  65, 10, 1 },
 
-    { 1610,  50,  60, 10 },
-    { 1760,  42,  55, 10 }
+    {1220,  55,  50, 10, 1 },
+    {1380,  48,  60, 10, 1 },
+
+
+    /*
+        ========================================================
+        FLESH PIT
+        ========================================================
+    */
+
+    {1550, 105, 100, 10, 1 },
+    {1690,  78, 100, 10, 1 },
+    {1810, 100,  75, 10, 1 },
+
+    {1610,  50,  60, 10, 1 },
+    {1760,  42,  55, 10, 1 }
 };
 
 #define SOLID_COUNT \
     (sizeof(solids) / sizeof(solids[0]))
 
+
 /*
-    Secret HP upgrade.
-
-    It sits just above the upper platform so that Iggy can
-    collect it while standing/jumping around that platform.
-
-    Upper platform:
-        x = 300..355
-        y = 82..92
-
-    Player standing on it:
-        player y ~= 54
-
-    Upgrade:
-        x = 326..334
-        y = 48..56
-
-    Therefore the player's collision box overlaps the upgrade
-    while standing on the platform.
+    ============================================================
+    SECRET HP UPGRADE
+    ============================================================
 */
+
 #define SECRET_HP_X        326
 #define SECRET_HP_Y         48
 #define SECRET_HP_WIDTH      8
 #define SECRET_HP_HEIGHT     8
 
+
 /*
-    Breakable barrier separating the early Chapel area from
-    the next section.
+    ============================================================
+    BREAKABLE BARRIER
+    ============================================================
 */
+
 #define BARRIER_X           360
 #define BARRIER_Y           104
 #define BARRIER_WIDTH        12
 #define BARRIER_HEIGHT       32
+
 
 static int overlap(
     int a,
@@ -122,10 +136,12 @@ static int overlap(
            a + size_a > b;
 }
 
+
 void world_init(GameState *state)
 {
     game_state = state;
 }
+
 
 void world_update(
     int player_x,
@@ -142,9 +158,13 @@ void world_update(
     if (game_state == 0)
         return;
 
+
     /*
-        Barrier destruction.
+        --------------------------------------------------------
+        BREAKABLE BARRIER
+        --------------------------------------------------------
     */
+
     if (!game_state->barrier_01_destroyed &&
         player_attacking)
     {
@@ -164,9 +184,13 @@ void world_update(
         }
     }
 
+
     /*
-        Secret HP upgrade.
+        --------------------------------------------------------
+        SECRET HP UPGRADE
+        --------------------------------------------------------
     */
+
     if (!game_state->secret_hp_01)
     {
         if (overlap(
@@ -185,6 +209,20 @@ void world_update(
     }
 }
 
+
+/*
+    ============================================================
+    NORMAL COLLISION
+    ============================================================
+
+    This handles ONLY fully-solid geometry.
+
+    One-way platforms are intentionally ignored.
+
+    That means Iggy can:
+        - walk through the side of platforms
+        - jump through their underside
+*/
 int world_collides(
     int x,
     int y,
@@ -197,6 +235,9 @@ int world_collides(
          ++i)
     {
         const Solid *s = &solids[i];
+
+        if (s->one_way)
+            continue;
 
         if (overlap(
                 x,
@@ -213,9 +254,11 @@ int world_collides(
         }
     }
 
+
     /*
-        Barrier remains solid until destroyed.
+        Breakable barrier is completely solid until destroyed.
     */
+
     if (game_state != 0 &&
         !game_state->barrier_01_destroyed)
     {
@@ -237,6 +280,181 @@ int world_collides(
     return 0;
 }
 
+
+/*
+    ============================================================
+    VERTICAL COLLISION
+    ============================================================
+
+    This is the important new platforming logic.
+
+    Fully-solid objects collide normally.
+
+    One-way platforms only collide when:
+
+        1. Iggy is falling.
+        2. His feet were above the platform.
+        3. His feet cross the platform during this frame.
+
+    Therefore:
+
+             Iggy
+               ↓
+               ↓ falling
+        ────────────────
+          PLATFORM
+
+        LAND!
+
+    But:
+
+        ────────────────
+          PLATFORM
+               ↑
+               ↑ jumping
+             Iggy
+
+        PASS THROUGH!
+*/
+int world_vertical_collision(
+    int x,
+    int current_y,
+    int next_y,
+    int width,
+    int height,
+    int velocity_y
+)
+{
+    int current_bottom =
+        current_y + height;
+
+    int next_bottom =
+        next_y + height;
+
+
+    /*
+        --------------------------------------------------------
+        FULLY SOLID OBJECTS
+        --------------------------------------------------------
+    */
+
+    for (unsigned int i = 0;
+         i < SOLID_COUNT;
+         ++i)
+    {
+        const Solid *s = &solids[i];
+
+        if (s->one_way)
+            continue;
+
+        if (overlap(
+                x,
+                width,
+                s->x,
+                s->width) &&
+            overlap(
+                next_y,
+                height,
+                s->y,
+                s->height))
+        {
+            /*
+                Return the surface.
+            */
+            if (velocity_y >= 0)
+                return s->y;
+
+            /*
+                For a completely solid object while moving
+                upward, return the bottom of the object.
+            */
+            return s->y + s->height;
+        }
+    }
+
+
+    /*
+        --------------------------------------------------------
+        BREAKABLE BARRIER
+        --------------------------------------------------------
+    */
+
+    if (game_state != 0 &&
+        !game_state->barrier_01_destroyed)
+    {
+        if (overlap(
+                x,
+                width,
+                BARRIER_X,
+                BARRIER_WIDTH) &&
+            overlap(
+                next_y,
+                height,
+                BARRIER_Y,
+                BARRIER_HEIGHT))
+        {
+            if (velocity_y >= 0)
+                return BARRIER_Y;
+
+            return BARRIER_Y + BARRIER_HEIGHT;
+        }
+    }
+
+
+    /*
+        --------------------------------------------------------
+        ONE-WAY PLATFORMS
+        --------------------------------------------------------
+
+        They ONLY work while falling.
+    */
+
+    if (velocity_y > 0)
+    {
+        for (unsigned int i = 0;
+             i < SOLID_COUNT;
+             ++i)
+        {
+            const Solid *s = &solids[i];
+
+            if (!s->one_way)
+                continue;
+
+
+            /*
+                Horizontal overlap.
+            */
+
+            if (!overlap(
+                    x,
+                    width,
+                    s->x,
+                    s->width))
+            {
+                continue;
+            }
+
+
+            /*
+                The player's feet must cross the top of
+                the platform during this frame.
+
+                This prevents a platform from acting as a
+                ceiling while Iggy is jumping upward.
+            */
+
+            if (current_bottom <= s->y &&
+                next_bottom >= s->y)
+            {
+                return s->y;
+            }
+        }
+    }
+
+    return -1;
+}
+
+
 static void draw_region_background(
     int camera_x,
     int region_x,
@@ -250,6 +468,7 @@ static void draw_region_background(
     if (end < 0 || start >= 240)
         return;
 
+
     gba_rect(
         start,
         0,
@@ -257,6 +476,7 @@ static void draw_region_background(
         136,
         RGB15(1, 1, 2)
     );
+
 
     for (int x = start;
          x < end;
@@ -276,6 +496,7 @@ static void draw_region_background(
             RGB15(4, 5, 6)
         );
 
+
         if (type == 0 ||
             type == 2 ||
             type == 4)
@@ -289,6 +510,7 @@ static void draw_region_background(
             );
         }
     }
+
 
     if (type == 0)
     {
@@ -422,15 +644,18 @@ static void draw_region_background(
     }
 }
 
+
 void world_draw(int camera_x)
 {
     gba_clear(
         RGB15(1, 1, 2)
     );
 
+
     /*
         Region backgrounds.
     */
+
     draw_region_background(
         camera_x,
         0,
@@ -466,9 +691,11 @@ void world_draw(int camera_x)
         4
     );
 
+
     /*
-        Solid geometry.
+        Solid and one-way geometry.
     */
+
     for (unsigned int i = 0;
          i < SOLID_COUNT;
          ++i)
@@ -484,6 +711,7 @@ void world_draw(int camera_x)
             continue;
         }
 
+
         gba_rect(
             sx,
             s->y,
@@ -492,10 +720,7 @@ void world_draw(int camera_x)
             RGB15(6, 7, 8)
         );
 
-        /*
-            Red upper edge gives platforms the
-            biomechanical horror look.
-        */
+
         if (s->height <= 12)
         {
             gba_rect(
@@ -508,9 +733,11 @@ void world_draw(int camera_x)
         }
     }
 
+
     /*
-        Barrier.
+        Breakable barrier.
     */
+
     if (game_state != 0 &&
         !game_state->barrier_01_destroyed)
     {
@@ -546,9 +773,11 @@ void world_draw(int camera_x)
         }
     }
 
+
     /*
         Secret HP upgrade.
     */
+
     if (game_state != 0 &&
         !game_state->secret_hp_01)
     {
@@ -576,9 +805,11 @@ void world_draw(int camera_x)
         }
     }
 
+
     /*
-        Small floor markers.
+        Floor markers.
     */
+
     for (int x = -camera_x;
          x < WORLD_WIDTH;
          x += 24)
