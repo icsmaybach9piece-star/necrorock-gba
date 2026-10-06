@@ -58,28 +58,31 @@ static void draw_hud(
             RGB15(25, 4, 5)
         );
     }
+
+    /*
+        Second HP upgrade indicator.
+
+        wall_01_destroyed is currently used by the prototype
+        exploration system as the collected-state flag for the
+        hidden alcove reward.
+    */
+    if (state->wall_01_destroyed)
+    {
+        gba_rect(
+            90, 8, 8, 8,
+            RGB15(25, 4, 5)
+        );
+    }
 }
 
 int main(void)
 {
-    /*
-        Initialize the double-buffered renderer.
-    */
-
     gba_init();
-
-    /*
-        Initialize game state and world.
-    */
 
     GameState game_state;
     game_state_init(&game_state);
 
     world_init(&game_state);
-
-    /*
-        Initialize the player and enemy.
-    */
 
     Player player;
     Enemy enemy;
@@ -94,22 +97,15 @@ int main(void)
 
     int title = 1;
     int previous_secret = 0;
+    int previous_secret_02 = 0;
 
     while (1)
     {
         input_update();
 
-        /*
-            TITLE SCREEN
-        */
-
         if (title)
         {
             draw_title();
-
-            /*
-                Show the completed title frame.
-            */
 
             gba_flip();
 
@@ -121,15 +117,7 @@ int main(void)
             continue;
         }
 
-        /*
-            UPDATE PLAYER
-        */
-
         player_update(&player);
-
-        /*
-            UPDATE WORLD INTERACTIONS
-        */
 
         world_update(
             player.x,
@@ -145,10 +133,6 @@ int main(void)
             player_attack_height(&player)
         );
 
-        /*
-            APPLY THE HP SECRET ONCE.
-        */
-
         if (game_state.secret_hp_01 &&
             !previous_secret)
         {
@@ -158,11 +142,21 @@ int main(void)
                 player.hp = 6;
         }
 
-        previous_secret = game_state.secret_hp_01;
-
         /*
-            UPDATE ENEMY AND COMBAT.
+            The first hidden-room reward uses the prototype
+            wall_01_destroyed state as its collected flag.
         */
+        if (game_state.wall_01_destroyed &&
+            !previous_secret_02)
+        {
+            player.hp += 1;
+
+            if (player.hp > 6)
+                player.hp = 6;
+        }
+
+        previous_secret = game_state.secret_hp_01;
+        previous_secret_02 = game_state.wall_01_destroyed;
 
         enemy_update(
             &enemy,
@@ -181,10 +175,6 @@ int main(void)
             );
         }
 
-        /*
-            CAMERA
-        */
-
         int camera_x = player.x - 112;
 
         if (camera_x < 0)
@@ -192,10 +182,6 @@ int main(void)
 
         if (camera_x > WORLD_WIDTH - 240)
             camera_x = WORLD_WIDTH - 240;
-
-        /*
-            DRAW THE ENTIRE FRAME TO THE HIDDEN PAGE.
-        */
 
         world_draw(camera_x);
 
@@ -213,10 +199,6 @@ int main(void)
             &player,
             &game_state
         );
-
-        /*
-            DISPLAY THE COMPLETED FRAME AT VBLANK.
-        */
 
         gba_flip();
     }
