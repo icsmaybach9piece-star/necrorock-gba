@@ -17,7 +17,7 @@
         1152 - 1536  ORGAN WORKS
         1536 - 1920  FLESH PIT
 
-    Exploration systems added:
+    Exploration systems:
 
         - persistent secret
         - breakable barrier
@@ -37,23 +37,38 @@ static GameState *game_state;
 static const Solid solids[] =
 {
     /*
+        ======================================================
         MAIN FLOOR
+        ======================================================
     */
 
     {    0, 136, 1920, 24 },
 
 
     /*
+        ======================================================
         NECRO-CHAPEL
+        ======================================================
     */
 
     {   45, 108, 100, 10 },
     {  210,  92, 100, 10 },
+
+    /*
+        Secret-room climbing route.
+
+        The lower platform allows Iggy to reach
+        the upper platform with the current jump.
+    */
+
+    {  300,  98,  55, 10 },
     {  300,  65,  55, 10 },
 
 
     /*
+        ======================================================
         BONE TUNNELS
+        ======================================================
     */
 
     {  410, 105, 120, 10 },
@@ -64,7 +79,9 @@ static const Solid solids[] =
 
 
     /*
+        ======================================================
         CATACOMBS
+        ======================================================
     */
 
     {  785, 105, 100, 10 },
@@ -75,7 +92,9 @@ static const Solid solids[] =
 
 
     /*
+        ======================================================
         ORGAN WORKS
+        ======================================================
     */
 
     { 1175, 110, 100, 10 },
@@ -87,7 +106,9 @@ static const Solid solids[] =
 
 
     /*
+        ======================================================
         FLESH PIT
+        ======================================================
     */
 
     { 1550, 105, 100, 10 },
@@ -113,14 +134,12 @@ static const Solid solids[] =
     First secret.
 
     Located above the Necro-Chapel platform.
-
-    The player must explore vertically to find it.
 */
 
-#define SECRET_HP_X       326
-#define SECRET_HP_Y        40
-#define SECRET_HP_WIDTH    8
-#define SECRET_HP_HEIGHT   8
+#define SECRET_HP_X        326
+#define SECRET_HP_Y         40
+#define SECRET_HP_WIDTH      8
+#define SECRET_HP_HEIGHT     8
 
 
 /*
@@ -128,22 +147,12 @@ static const Solid solids[] =
 
     It blocks a small passage between the
     Necro-Chapel and Bone Tunnels.
-
-    Once destroyed, it remains destroyed.
 */
 
-#define BARRIER_X          360
-#define BARRIER_Y          104
-#define BARRIER_WIDTH       12
-#define BARRIER_HEIGHT      32
-
-
-/*
-    Hidden shortcut.
-
-    After the barrier is destroyed, the player
-    can pass through this opening.
-*/
+#define BARRIER_X           360
+#define BARRIER_Y           104
+#define BARRIER_WIDTH        12
+#define BARRIER_HEIGHT       32
 
 
 /*
@@ -266,7 +275,9 @@ int world_collides(
         Normal world geometry.
     */
 
-    for (unsigned int i = 0; i < SOLID_COUNT; ++i)
+    for (unsigned int i = 0;
+         i < SOLID_COUNT;
+         ++i)
     {
         const Solid *s = &solids[i];
 
@@ -351,12 +362,15 @@ static void draw_region_background(
         Vertical biomechanical structures.
     */
 
-    for (int x = start; x < end; x += 48)
+    for (int x = start;
+         x < end;
+         x += 48)
     {
         if (x < -20 || x >= 240)
             continue;
 
-        int height = 65 + ((x + region_x) % 35);
+        int height =
+            65 + ((x + region_x) % 35);
 
         gba_rect(
             x,
@@ -387,7 +401,9 @@ static void draw_region_background(
 
 
     /*
+        ======================================================
         NECRO-CHAPEL
+        ======================================================
     */
 
     if (type == 0)
@@ -411,7 +427,9 @@ static void draw_region_background(
 
 
     /*
+        ======================================================
         BONE TUNNELS
+        ======================================================
     */
 
     else if (type == 1)
@@ -443,7 +461,9 @@ static void draw_region_background(
 
 
     /*
+        ======================================================
         CATACOMBS
+        ======================================================
     */
 
     else if (type == 2)
@@ -483,7 +503,9 @@ static void draw_region_background(
 
 
     /*
+        ======================================================
         ORGAN WORKS
+        ======================================================
     */
 
     else if (type == 3)
@@ -515,7 +537,9 @@ static void draw_region_background(
 
 
     /*
+        ======================================================
         FLESH PIT
+        ======================================================
     */
 
     else
@@ -555,11 +579,15 @@ static void draw_region_background(
 
 void world_draw(int camera_x)
 {
-    gba_clear(RGB15(1, 1, 2));
+    gba_clear(
+        RGB15(1, 1, 2)
+    );
 
 
     /*
-        Five regions.
+        ======================================================
+        FIVE REGIONS
+        ======================================================
     */
 
     draw_region_background(
@@ -599,7 +627,9 @@ void world_draw(int camera_x)
 
 
     /*
-        Platforms and floor.
+        ======================================================
+        PLATFORMS AND FLOOR
+        ======================================================
     */
 
     for (unsigned int i = 0;
@@ -608,7 +638,8 @@ void world_draw(int camera_x)
     {
         const Solid *s = &solids[i];
 
-        int sx = s->x - camera_x;
+        int sx =
+            s->x - camera_x;
 
         if (sx + s->width < 0 ||
             sx >= 240)
@@ -651,7 +682,8 @@ void world_draw(int camera_x)
     if (game_state != 0 &&
         !game_state->barrier_01_destroyed)
     {
-        int bx = BARRIER_X - camera_x;
+        int bx =
+            BARRIER_X - camera_x;
 
         if (bx + BARRIER_WIDTH >= 0 &&
             bx < 240)
@@ -663,6 +695,7 @@ void world_draw(int camera_x)
                 BARRIER_HEIGHT,
                 RGB15(10, 8, 8)
             );
+
 
             /*
                 Organic red cracks.
@@ -696,13 +729,14 @@ void world_draw(int camera_x)
     if (game_state != 0 &&
         !game_state->secret_hp_01)
     {
-        int sx = SECRET_HP_X - camera_x;
+        int sx =
+            SECRET_HP_X - camera_x;
 
         if (sx + SECRET_HP_WIDTH >= 0 &&
             sx < 240)
         {
             /*
-                Small pulsing-looking core.
+                Small red/white core.
             */
 
             gba_rect(
