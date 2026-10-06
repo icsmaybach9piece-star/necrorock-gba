@@ -8,63 +8,35 @@
 #include "enemy.h"
 #include "game_state.h"
 
-#define REG_DISPCNT (*(volatile uint16_t*)0x04000000)
-
-#define MODE3       3
-#define BG2_ENABLE  (1 << 10)
-
-
 static void draw_title(void)
 {
     gba_clear(RGB15(1, 1, 2));
 
     gba_rect(
-        42,
-        35,
-        156,
-        8,
+        42, 35, 156, 8,
         RGB15(16, 3, 4)
     );
 
     gba_rect(
-        60,
-        50,
-        120,
-        5,
+        60, 50, 120, 5,
         RGB15(10, 10, 10)
     );
 
     gba_rect(
-        84,
-        100,
-        72,
-        4,
+        84, 100, 72, 4,
         RGB15(12, 12, 12)
     );
 }
-
 
 static void draw_hud(
     const Player *player,
     const GameState *state
 )
 {
-    /*
-        HP container.
-    */
-
     gba_rect(
-        8,
-        8,
-        64,
-        8,
+        8, 8, 64, 8,
         RGB15(3, 3, 3)
     );
-
-
-    /*
-        HP bar.
-    */
 
     int hp_width = player->hp * 10;
 
@@ -74,76 +46,45 @@ static void draw_hud(
     if (hp_width > 0)
     {
         gba_rect(
-            10,
-            10,
-            hp_width,
-            4,
+            10, 10, hp_width, 4,
             RGB15(20, 3, 4)
         );
     }
 
-
-    /*
-        Tiny exploration indicator.
-
-        This is temporary and will become
-        proper HUD art later.
-    */
-
     if (state->secret_hp_01)
     {
         gba_rect(
-            78,
-            8,
-            8,
-            8,
+            78, 8, 8, 8,
             RGB15(25, 4, 5)
         );
     }
 }
 
-
 int main(void)
 {
-    REG_DISPCNT = MODE3 | BG2_ENABLE;
+    /*
+        Initialize the double-buffered renderer.
+    */
 
+    gba_init();
 
     /*
-        ======================================================
-        GAME STATE
-        ======================================================
+        Initialize game state and world.
     */
 
     GameState game_state;
+    game_state_init(&game_state);
 
-    game_state_init(
-        &game_state
-    );
-
+    world_init(&game_state);
 
     /*
-        ======================================================
-        WORLD
-        ======================================================
-    */
-
-    world_init(
-        &game_state
-    );
-
-
-    /*
-        ======================================================
-        PLAYER / ENEMY
-        ======================================================
+        Initialize the player and enemy.
     */
 
     Player player;
     Enemy enemy;
 
-    player_init(
-        &player
-    );
+    player_init(&player);
 
     enemy_init(
         &enemy,
@@ -151,49 +92,43 @@ int main(void)
         118
     );
 
-
     int title = 1;
-
-
-    /*
-        ======================================================
-        MAIN LOOP
-        ======================================================
-    */
+    int previous_secret = 0;
 
     while (1)
     {
-        gba_vsync();
-
         input_update();
 
-
         /*
-            TITLE
+            TITLE SCREEN
         */
 
         if (title)
         {
             draw_title();
 
+            /*
+                Show the completed title frame.
+            */
+
+            gba_flip();
+
             if (input_pressed() & KEY_START)
+            {
                 title = 0;
+            }
 
             continue;
         }
 
-
         /*
-            PLAYER
+            UPDATE PLAYER
         */
 
-        player_update(
-            &player
-        );
-
+        player_update(&player);
 
         /*
-            WORLD INTERACTION
+            UPDATE WORLD INTERACTIONS
         */
 
         world_update(
@@ -202,39 +137,17 @@ int main(void)
             player.width,
             player.height,
 
-            player_is_attacking(
-                &player
-            ),
+            player_is_attacking(&player),
 
-            player_attack_x(
-                &player
-            ),
-
-            player_attack_y(
-                &player
-            ),
-
-            player_attack_width(
-                &player
-            ),
-
-            player_attack_height(
-                &player
-            )
+            player_attack_x(&player),
+            player_attack_y(&player),
+            player_attack_width(&player),
+            player_attack_height(&player)
         );
 
-
         /*
-            SECRET HP UPGRADE
-
-            For now the upgrade increases maximum
-            practical HP immediately.
-
-            Later we'll create a proper maximum-HP
-            system instead of this simple prototype.
+            APPLY THE HP SECRET ONCE.
         */
-
-        static int previous_secret = 0;
 
         if (game_state.secret_hp_01 &&
             !previous_secret)
@@ -245,12 +158,10 @@ int main(void)
                 player.hp = 6;
         }
 
-        previous_secret =
-            game_state.secret_hp_01;
-
+        previous_secret = game_state.secret_hp_01;
 
         /*
-            ENEMY
+            UPDATE ENEMY AND COMBAT.
         */
 
         enemy_update(
@@ -259,92 +170,56 @@ int main(void)
             player.y
         );
 
-
-        /*
-            COMBAT
-        */
-
         if (player_is_attacking(&player))
         {
             enemy_hit(
                 &enemy,
-
-                player_attack_x(
-                    &player
-                ),
-
-                player_attack_y(
-                    &player
-                ),
-
-                player_attack_width(
-                    &player
-                ),
-
-                player_attack_height(
-                    &player
-                )
+                player_attack_x(&player),
+                player_attack_y(&player),
+                player_attack_width(&player),
+                player_attack_height(&player)
             );
         }
-
 
         /*
             CAMERA
         */
 
-        int camera_x =
-            player.x - 112;
+        int camera_x = player.x - 112;
 
         if (camera_x < 0)
             camera_x = 0;
 
-        if (camera_x >
-            WORLD_WIDTH - 240)
-        {
-            camera_x =
-                WORLD_WIDTH - 240;
-        }
-
+        if (camera_x > WORLD_WIDTH - 240)
+            camera_x = WORLD_WIDTH - 240;
 
         /*
-            DRAW WORLD
+            DRAW THE ENTIRE FRAME TO THE HIDDEN PAGE.
         */
 
-        world_draw(
-            camera_x
-        );
-
-
-        /*
-            DRAW ENEMY
-        */
+        world_draw(camera_x);
 
         enemy_draw(
             &enemy,
             camera_x
         );
 
-
-        /*
-            DRAW PLAYER
-        */
-
         player_draw(
             &player,
             camera_x
         );
 
-
-        /*
-            HUD
-        */
-
         draw_hud(
             &player,
             &game_state
         );
-    }
 
+        /*
+            DISPLAY THE COMPLETED FRAME AT VBLANK.
+        */
+
+        gba_flip();
+    }
 
     return 0;
 }
