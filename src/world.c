@@ -25,6 +25,7 @@
         - shortcut state
 */
 
+
 static GameState *game_state;
 
 
@@ -55,14 +56,14 @@ static const Solid solids[] =
     {  210,  92, 100, 10 },
 
     /*
-        Secret-room climbing route.
+        Secret climbing route.
 
-        The lower platform allows Iggy to reach
-        the upper platform with the current jump.
+        These heights are deliberately reachable
+        with the current jump physics.
     */
 
-    {  300,  98,  55, 10 },
-    {  300,  65,  55, 10 },
+    {  300, 105, 55, 10 },
+    {  300,  70, 55, 10 },
 
 
     /*
@@ -73,9 +74,9 @@ static const Solid solids[] =
 
     {  410, 105, 120, 10 },
     {  575,  82, 110, 10 },
-    {  690, 110,  50, 10 },
+    {  690, 110, 50, 10 },
 
-    {  470,  55,  55, 10 },
+    {  470,  55, 55, 10 },
 
 
     /*
@@ -85,10 +86,10 @@ static const Solid solids[] =
     */
 
     {  785, 105, 100, 10 },
-    {  925,  78,  80, 10 },
-    { 1045,  52,  65, 10 },
+    {  925,  78, 80, 10 },
+    { 1045,  52, 65, 10 },
 
-    {  830,  48,  45, 10 },
+    {  830,  48, 45, 10 },
 
 
     /*
@@ -99,10 +100,10 @@ static const Solid solids[] =
 
     { 1175, 110, 100, 10 },
     { 1310,  88, 110, 10 },
-    { 1450, 112,  65, 10 },
+    { 1450, 112, 65, 10 },
 
-    { 1220,  55,  50, 10 },
-    { 1380,  48,  60, 10 },
+    { 1220,  55, 50, 10 },
+    { 1380,  48, 60, 10 },
 
 
     /*
@@ -113,10 +114,10 @@ static const Solid solids[] =
 
     { 1550, 105, 100, 10 },
     { 1690,  78, 100, 10 },
-    { 1810, 100,  75, 10 },
+    { 1810, 100, 75, 10 },
 
-    { 1610,  50,  60, 10 },
-    { 1760,  42,  55, 10 }
+    { 1610,  50, 60, 10 },
+    { 1760,  42, 55, 10 }
 };
 
 #define SOLID_COUNT \
@@ -133,7 +134,8 @@ static const Solid solids[] =
 /*
     First secret.
 
-    Located above the Necro-Chapel platform.
+    The player reaches this from the upper
+    Necro-Chapel platform.
 */
 
 #define SECRET_HP_X        326
@@ -144,9 +146,6 @@ static const Solid solids[] =
 
 /*
     First breakable barrier.
-
-    It blocks a small passage between the
-    Necro-Chapel and Bone Tunnels.
 */
 
 #define BARRIER_X           360
@@ -735,10 +734,6 @@ void world_draw(int camera_x)
         if (sx + SECRET_HP_WIDTH >= 0 &&
             sx < 240)
         {
-            /*
-                Small red/white core.
-            */
-
             gba_rect(
                 sx + 2,
                 SECRET_HP_Y + 2,
