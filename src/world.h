@@ -14,6 +14,17 @@ typedef struct
     int y;
     int width;
     int height;
+
+    /*
+        0 = completely solid
+        1 = one-way platform
+
+        One-way platforms:
+        - can be jumped through from below
+        - can be landed on from above
+        - do not block horizontal movement
+    */
+    int one_way;
 } Solid;
 
 void world_init(GameState *state);
@@ -32,11 +43,36 @@ void world_update(
 
 void world_draw(int camera_x);
 
+/*
+    Checks walls and fully-solid geometry.
+
+    One-way platforms are deliberately NOT included here.
+*/
 int world_collides(
     int x,
     int y,
     int width,
     int height
+);
+
+/*
+    Checks vertical movement.
+
+    Returns:
+        -1 if there is no collision
+        otherwise the Y coordinate of the surface
+        Iggy should stand on.
+
+    One-way platforms only collide when Iggy is falling
+    through their top surface.
+*/
+int world_vertical_collision(
+    int x,
+    int current_y,
+    int next_y,
+    int width,
+    int height,
+    int velocity_y
 );
 
 #endif
