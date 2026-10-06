@@ -7,6 +7,9 @@
 
 static GameState *game_state;
 
+/* First hidden-room collectible. */
+static int secret_hp_02_collected = 0;
+
 
 /*
     ============================================================
@@ -94,7 +97,10 @@ static const Solid solids[] =
     { 1810, 100,  75, 10, 1 },
 
     { 1610,  50,  60, 10, 1 },
-    { 1760,  42,  55, 10, 1 }
+    { 1760,  42,  55, 10, 1 },
+
+    /* Back wall of the first hidden alcove. */
+    {  575, 104,  12, 32, 0 }
 };
 
 
@@ -163,6 +169,20 @@ static Breakable breakables[] =
         BREAKABLE_BARRIER,
 
         0
+    },
+
+    /* Hidden wall into the first secret alcove. */
+    {
+        530,
+        104,
+        12,
+        32,
+
+        1,
+
+        BREAKABLE_WALL,
+
+        0
     }
 };
 
@@ -208,12 +228,16 @@ static void connect_breakables(void)
 
     breakables[0].destroyed =
         &game_state->barrier_01_destroyed;
+
+    breakables[1].destroyed =
+        &game_state->barrier_02_destroyed;
 }
 
 
 void world_init(GameState *state)
 {
     game_state = state;
+    secret_hp_02_collected = 0;
 
     connect_breakables();
 }
@@ -312,6 +336,35 @@ void world_update(
         if (game_state->barrier_01_destroyed)
         {
             game_state->shortcut_01_open = 1;
+        }
+    }
+
+
+    /*
+        --------------------------------------------------------
+        HIDDEN ALCOVE HP UPGRADE
+        --------------------------------------------------------
+
+        The reward only exists after the hidden wall has been
+        destroyed. It is collected once per game session.
+    */
+
+    if (game_state->barrier_02_destroyed &&
+        !secret_hp_02_collected)
+    {
+        if (overlap(
+                player_x,
+                player_width,
+                545,
+                8) &&
+            overlap(
+                player_y,
+                player_height,
+                112,
+                8))
+        {
+            secret_hp_02_collected = 1;
+            game_state->wall_01_destroyed = 1;
         }
     }
 
@@ -885,6 +938,62 @@ void world_draw(int camera_x)
 
 
     /*
+        First hidden alcove.
+
+        The entrance is the breakable wall at x=530. The rear wall
+        is ordinary solid geometry, so the room reads as a sealed
+        space until the entrance is destroyed.
+    */
+
+    {
+        int room_x = 530 - camera_x;
+
+        if (room_x < 240 && room_x + 57 >= 0)
+        {
+            gba_rect(
+                room_x + 12,
+                104,
+                45,
+                32,
+                RGB15(3, 3, 4)
+            );
+
+            gba_rect(
+                room_x + 14,
+                106,
+                41,
+                2,
+                RGB15(8, 3, 4)
+            );
+
+            gba_rect(
+                room_x + 16,
+                130,
+                37,
+                4,
+                RGB15(7, 7, 8)
+            );
+
+            gba_rect(
+                room_x + 20,
+                108,
+                3,
+                20,
+                RGB15(7, 4, 5)
+            );
+
+            gba_rect(
+                room_x + 42,
+                112,
+                2,
+                16,
+                RGB15(12, 3, 4)
+            );
+        }
+    }
+
+
+    /*
         Breakable objects.
     */
 
@@ -1009,6 +1118,37 @@ void world_draw(int camera_x)
             gba_rect(
                 sx,
                 SECRET_HP_Y + 3,
+                8,
+                2,
+                RGB15(15, 12, 12)
+            );
+        }
+    }
+
+
+    /*
+        Hidden-room HP shard.
+    */
+
+    if (game_state != 0 &&
+        game_state->barrier_02_destroyed &&
+        !secret_hp_02_collected)
+    {
+        int sx = 545 - camera_x;
+
+        if (sx + 8 >= 0 && sx < 240)
+        {
+            gba_rect(
+                sx + 2,
+                114,
+                4,
+                4,
+                RGB15(25, 4, 5)
+            );
+
+            gba_rect(
+                sx,
+                115,
                 8,
                 2,
                 RGB15(15, 12, 12)
