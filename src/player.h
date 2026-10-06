@@ -20,6 +20,10 @@ typedef struct
     int attack_timer;
     int attack_cooldown;
 
+    /* Attack direction: -1, 0, +1 on each axis. */
+    int attack_dir_x;
+    int attack_dir_y;
+
     int hp;
     int invulnerability_timer;
 
