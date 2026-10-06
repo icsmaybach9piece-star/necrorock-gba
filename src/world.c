@@ -4,22 +4,28 @@
 
 #include "world.h"
 
+
 static GameState *game_state;
 
 
 /*
     ============================================================
-    WORLD GEOMETRY
+    BASIC SOLID GEOMETRY
     ============================================================
+
+    one_way = 0
+        Completely solid.
+
+    one_way = 1
+        Jump-through platform.
 */
 
 static const Solid solids[] =
 {
     /*
         Main floor.
-        Completely solid.
     */
-    { 0, 136, 1920, 24, 0 },
+    {    0, 136, 1920, 24, 0 },
 
 
     /*
@@ -28,19 +34,13 @@ static const Solid solids[] =
         ========================================================
     */
 
-    {  45, 108, 100, 10, 1 },
+    {   45, 108, 100, 10, 1 },
 
-    /*
-        Small low platform.
-        One-way, so it cannot become a jump ceiling.
-    */
-    { 210, 112, 60, 10, 1 },
+    {  210, 112,  60, 10, 1 },
 
-    /*
-        Secret route.
-    */
-    { 300, 110, 55, 10, 1 },
-    { 300,  82, 55, 10, 1 },
+    {  300, 110,  55, 10, 1 },
+
+    {  300,  82,  55, 10, 1 },
 
 
     /*
@@ -49,11 +49,11 @@ static const Solid solids[] =
         ========================================================
     */
 
-    { 410, 105, 120, 10, 1 },
-    { 575,  82, 110, 10, 1 },
-    { 690, 110,  50, 10, 1 },
+    {  410, 105, 120, 10, 1 },
+    {  575,  82, 110, 10, 1 },
+    {  690, 110,  50, 10, 1 },
 
-    { 470,  55,  55, 10, 1 },
+    {  470,  55,  55, 10, 1 },
 
 
     /*
@@ -62,11 +62,11 @@ static const Solid solids[] =
         ========================================================
     */
 
-    { 785, 105, 100, 10, 1 },
-    { 925,  78,  80, 10, 1 },
-    {1045,  52,  65, 10, 1 },
+    {  785, 105, 100, 10, 1 },
+    {  925,  78,  80, 10, 1 },
+    { 1045,  52,  65, 10, 1 },
 
-    { 830,  48,  45, 10, 1 },
+    {  830,  48,  45, 10, 1 },
 
 
     /*
@@ -75,12 +75,12 @@ static const Solid solids[] =
         ========================================================
     */
 
-    {1175, 110, 100, 10, 1 },
-    {1310,  88, 110, 10, 1 },
-    {1450, 112,  65, 10, 1 },
+    { 1175, 110, 100, 10, 1 },
+    { 1310,  88, 110, 10, 1 },
+    { 1450, 112,  65, 10, 1 },
 
-    {1220,  55,  50, 10, 1 },
-    {1380,  48,  60, 10, 1 },
+    { 1220,  55,  50, 10, 1 },
+    { 1380,  48,  60, 10, 1 },
 
 
     /*
@@ -89,13 +89,14 @@ static const Solid solids[] =
         ========================================================
     */
 
-    {1550, 105, 100, 10, 1 },
-    {1690,  78, 100, 10, 1 },
-    {1810, 100,  75, 10, 1 },
+    { 1550, 105, 100, 10, 1 },
+    { 1690,  78, 100, 10, 1 },
+    { 1810, 100,  75, 10, 1 },
 
-    {1610,  50,  60, 10, 1 },
-    {1760,  42,  55, 10, 1 }
+    { 1610,  50,  60, 10, 1 },
+    { 1760,  42,  55, 10, 1 }
 };
+
 
 #define SOLID_COUNT \
     (sizeof(solids) / sizeof(solids[0]))
@@ -103,7 +104,76 @@ static const Solid solids[] =
 
 /*
     ============================================================
-    SECRET HP UPGRADE
+    BREAKABLE OBJECT SYSTEM
+    ============================================================
+
+    Every breakable object has:
+
+        x/y
+        width/height
+        hit points
+        type
+
+    The type is mostly for visual treatment.
+
+        0 = barrier
+        1 = wall
+        2 = floor
+        3 = ceiling
+*/
+
+typedef struct
+{
+    int x;
+    int y;
+
+    int width;
+    int height;
+
+    int hp;
+
+    int type;
+
+    int *destroyed;
+
+} Breakable;
+
+
+#define BREAKABLE_BARRIER  0
+#define BREAKABLE_WALL     1
+#define BREAKABLE_FLOOR    2
+#define BREAKABLE_CEILING  3
+
+
+/*
+    Existing Chapel barrier.
+
+    This remains exactly where the player already expects it.
+*/
+static Breakable breakables[] =
+{
+    {
+        360,
+        104,
+        12,
+        32,
+
+        1,
+
+        BREAKABLE_BARRIER,
+
+        0
+    }
+};
+
+
+#define BREAKABLE_COUNT \
+    (sizeof(breakables) / sizeof(breakables[0]))
+
+
+/*
+    ============================================================
+    SECRET UPGRADE
     ============================================================
 */
 
@@ -111,18 +181,6 @@ static const Solid solids[] =
 #define SECRET_HP_Y         48
 #define SECRET_HP_WIDTH      8
 #define SECRET_HP_HEIGHT     8
-
-
-/*
-    ============================================================
-    BREAKABLE BARRIER
-    ============================================================
-*/
-
-#define BARRIER_X           360
-#define BARRIER_Y           104
-#define BARRIER_WIDTH        12
-#define BARRIER_HEIGHT       32
 
 
 static int overlap(
@@ -137,11 +195,35 @@ static int overlap(
 }
 
 
+/*
+    Connect the breakable objects to persistent GameState.
+
+    Keeping this in one place means adding a new breakable
+    object later is straightforward.
+*/
+static void connect_breakables(void)
+{
+    if (game_state == 0)
+        return;
+
+    breakables[0].destroyed =
+        &game_state->barrier_01_destroyed;
+}
+
+
 void world_init(GameState *state)
 {
     game_state = state;
+
+    connect_breakables();
 }
 
+
+/*
+    ============================================================
+    WORLD UPDATE
+    ============================================================
+*/
 
 void world_update(
     int player_x,
@@ -161,25 +243,74 @@ void world_update(
 
     /*
         --------------------------------------------------------
-        BREAKABLE BARRIER
+        BREAKABLE OBJECTS
         --------------------------------------------------------
+
+        Every breakable object receives the same attack logic.
+
+        This is the part we can expand later without rewriting
+        the player combat system.
     */
 
-    if (!game_state->barrier_01_destroyed &&
-        player_attacking)
+    if (player_attacking)
     {
-        if (overlap(
-                attack_x,
-                attack_width,
-                BARRIER_X,
-                BARRIER_WIDTH) &&
-            overlap(
-                attack_y,
-                attack_height,
-                BARRIER_Y,
-                BARRIER_HEIGHT))
+        for (unsigned int i = 0;
+             i < BREAKABLE_COUNT;
+             ++i)
         {
-            game_state->barrier_01_destroyed = 1;
+            Breakable *object =
+                &breakables[i];
+
+
+            if (object->destroyed == 0)
+                continue;
+
+
+            if (*object->destroyed)
+                continue;
+
+
+            if (!overlap(
+                    attack_x,
+                    attack_width,
+                    object->x,
+                    object->width))
+            {
+                continue;
+            }
+
+
+            if (!overlap(
+                    attack_y,
+                    attack_height,
+                    object->y,
+                    object->height))
+            {
+                continue;
+            }
+
+
+            /*
+                For now all prototype breakables require
+                one successful attack.
+
+                Later this becomes proper HP/damage.
+            */
+            object->hp--;
+
+
+            if (object->hp <= 0)
+            {
+                *object->destroyed = 1;
+            }
+        }
+
+
+        /*
+            The first destroyed barrier opens the shortcut.
+        */
+        if (game_state->barrier_01_destroyed)
+        {
             game_state->shortcut_01_open = 1;
         }
     }
@@ -215,14 +346,12 @@ void world_update(
     NORMAL COLLISION
     ============================================================
 
-    This handles ONLY fully-solid geometry.
+    One-way platforms are ignored here.
 
-    One-way platforms are intentionally ignored.
-
-    That means Iggy can:
-        - walk through the side of platforms
-        - jump through their underside
+    Breakables are checked separately because their collision
+    depends on persistent destruction state.
 */
+
 int world_collides(
     int x,
     int y,
@@ -230,14 +359,21 @@ int world_collides(
     int height
 )
 {
+    /*
+        Normal solid geometry.
+    */
+
     for (unsigned int i = 0;
          i < SOLID_COUNT;
          ++i)
     {
-        const Solid *s = &solids[i];
+        const Solid *s =
+            &solids[i];
+
 
         if (s->one_way)
             continue;
+
 
         if (overlap(
                 x,
@@ -256,26 +392,40 @@ int world_collides(
 
 
     /*
-        Breakable barrier is completely solid until destroyed.
+        Breakable objects are completely solid while intact.
     */
 
-    if (game_state != 0 &&
-        !game_state->barrier_01_destroyed)
+    for (unsigned int i = 0;
+         i < BREAKABLE_COUNT;
+         ++i)
     {
+        const Breakable *object =
+            &breakables[i];
+
+
+        if (object->destroyed == 0)
+            continue;
+
+
+        if (*object->destroyed)
+            continue;
+
+
         if (overlap(
                 x,
                 width,
-                BARRIER_X,
-                BARRIER_WIDTH) &&
+                object->x,
+                object->width) &&
             overlap(
                 y,
                 height,
-                BARRIER_Y,
-                BARRIER_HEIGHT))
+                object->y,
+                object->height))
         {
             return 1;
         }
     }
+
 
     return 0;
 }
@@ -285,37 +435,8 @@ int world_collides(
     ============================================================
     VERTICAL COLLISION
     ============================================================
-
-    This is the important new platforming logic.
-
-    Fully-solid objects collide normally.
-
-    One-way platforms only collide when:
-
-        1. Iggy is falling.
-        2. His feet were above the platform.
-        3. His feet cross the platform during this frame.
-
-    Therefore:
-
-             Iggy
-               ↓
-               ↓ falling
-        ────────────────
-          PLATFORM
-
-        LAND!
-
-    But:
-
-        ────────────────
-          PLATFORM
-               ↑
-               ↑ jumping
-             Iggy
-
-        PASS THROUGH!
 */
+
 int world_vertical_collision(
     int x,
     int current_y,
@@ -334,7 +455,7 @@ int world_vertical_collision(
 
     /*
         --------------------------------------------------------
-        FULLY SOLID OBJECTS
+        FULLY SOLID GEOMETRY
         --------------------------------------------------------
     */
 
@@ -342,10 +463,13 @@ int world_vertical_collision(
          i < SOLID_COUNT;
          ++i)
     {
-        const Solid *s = &solids[i];
+        const Solid *s =
+            &solids[i];
+
 
         if (s->one_way)
             continue;
+
 
         if (overlap(
                 x,
@@ -358,16 +482,10 @@ int world_vertical_collision(
                 s->y,
                 s->height))
         {
-            /*
-                Return the surface.
-            */
             if (velocity_y >= 0)
                 return s->y;
 
-            /*
-                For a completely solid object while moving
-                upward, return the bottom of the object.
-            */
+
             return s->y + s->height;
         }
     }
@@ -375,29 +493,51 @@ int world_vertical_collision(
 
     /*
         --------------------------------------------------------
-        BREAKABLE BARRIER
+        BREAKABLE OBJECTS
         --------------------------------------------------------
     */
 
-    if (game_state != 0 &&
-        !game_state->barrier_01_destroyed)
+    for (unsigned int i = 0;
+         i < BREAKABLE_COUNT;
+         ++i)
     {
-        if (overlap(
+        const Breakable *object =
+            &breakables[i];
+
+
+        if (object->destroyed == 0)
+            continue;
+
+
+        if (*object->destroyed)
+            continue;
+
+
+        if (!overlap(
                 x,
                 width,
-                BARRIER_X,
-                BARRIER_WIDTH) &&
-            overlap(
+                object->x,
+                object->width))
+        {
+            continue;
+        }
+
+
+        if (!overlap(
                 next_y,
                 height,
-                BARRIER_Y,
-                BARRIER_HEIGHT))
+                object->y,
+                object->height))
         {
-            if (velocity_y >= 0)
-                return BARRIER_Y;
-
-            return BARRIER_Y + BARRIER_HEIGHT;
+            continue;
         }
+
+
+        if (velocity_y >= 0)
+            return object->y;
+
+
+        return object->y + object->height;
     }
 
 
@@ -405,8 +545,6 @@ int world_vertical_collision(
         --------------------------------------------------------
         ONE-WAY PLATFORMS
         --------------------------------------------------------
-
-        They ONLY work while falling.
     */
 
     if (velocity_y > 0)
@@ -415,15 +553,13 @@ int world_vertical_collision(
              i < SOLID_COUNT;
              ++i)
         {
-            const Solid *s = &solids[i];
+            const Solid *s =
+                &solids[i];
+
 
             if (!s->one_way)
                 continue;
 
-
-            /*
-                Horizontal overlap.
-            */
 
             if (!overlap(
                     x,
@@ -435,14 +571,6 @@ int world_vertical_collision(
             }
 
 
-            /*
-                The player's feet must cross the top of
-                the platform during this frame.
-
-                This prevents a platform from acting as a
-                ceiling while Iggy is jumping upward.
-            */
-
             if (current_bottom <= s->y &&
                 next_bottom >= s->y)
             {
@@ -451,9 +579,16 @@ int world_vertical_collision(
         }
     }
 
+
     return -1;
 }
 
+
+/*
+    ============================================================
+    BACKGROUND
+    ============================================================
+*/
 
 static void draw_region_background(
     int camera_x,
@@ -462,8 +597,12 @@ static void draw_region_background(
     int type
 )
 {
-    int start = region_x - camera_x;
-    int end = start + region_width;
+    int start =
+        region_x - camera_x;
+
+    int end =
+        start + region_width;
+
 
     if (end < 0 || start >= 240)
         return;
@@ -485,8 +624,10 @@ static void draw_region_background(
         if (x < -20 || x >= 240)
             continue;
 
+
         int height =
             65 + ((x + region_x) % 35);
+
 
         gba_rect(
             x,
@@ -645,6 +786,12 @@ static void draw_region_background(
 }
 
 
+/*
+    ============================================================
+    WORLD DRAW
+    ============================================================
+*/
+
 void world_draw(int camera_x)
 {
     gba_clear(
@@ -693,17 +840,20 @@ void world_draw(int camera_x)
 
 
     /*
-        Solid and one-way geometry.
+        Normal geometry.
     */
 
     for (unsigned int i = 0;
          i < SOLID_COUNT;
          ++i)
     {
-        const Solid *s = &solids[i];
+        const Solid *s =
+            &solids[i];
+
 
         int sx =
             s->x - camera_x;
+
 
         if (sx + s->width < 0 ||
             sx >= 240)
@@ -735,40 +885,100 @@ void world_draw(int camera_x)
 
 
     /*
-        Breakable barrier.
+        Breakable objects.
     */
 
-    if (game_state != 0 &&
-        !game_state->barrier_01_destroyed)
+    for (unsigned int i = 0;
+         i < BREAKABLE_COUNT;
+         ++i)
     {
-        int bx =
-            BARRIER_X - camera_x;
+        const Breakable *object =
+            &breakables[i];
 
-        if (bx + BARRIER_WIDTH >= 0 &&
-            bx < 240)
+
+        if (object->destroyed == 0)
+            continue;
+
+
+        if (*object->destroyed)
+            continue;
+
+
+        int bx =
+            object->x - camera_x;
+
+
+        if (bx + object->width < 0 ||
+            bx >= 240)
+        {
+            continue;
+        }
+
+
+        /*
+            Base material.
+        */
+
+        gba_rect(
+            bx,
+            object->y,
+            object->width,
+            object->height,
+            RGB15(10, 8, 8)
+        );
+
+
+        /*
+            Different visual signatures for different
+            breakable object types.
+        */
+
+        if (object->type == BREAKABLE_BARRIER)
         {
             gba_rect(
-                bx,
-                BARRIER_Y,
-                BARRIER_WIDTH,
-                BARRIER_HEIGHT,
-                RGB15(10, 8, 8)
-            );
-
-            gba_rect(
                 bx + 3,
-                BARRIER_Y + 5,
+                object->y + 5,
                 2,
-                22,
+                object->height - 10,
                 RGB15(18, 3, 4)
             );
 
             gba_rect(
                 bx + 7,
-                BARRIER_Y + 14,
+                object->y + 14,
                 2,
-                14,
+                object->height - 18,
                 RGB15(20, 3, 4)
+            );
+        }
+        else if (object->type == BREAKABLE_WALL)
+        {
+            gba_rect(
+                bx + 2,
+                object->y + 3,
+                object->width - 4,
+                2,
+                RGB15(15, 5, 5)
+            );
+        }
+        else if (object->type == BREAKABLE_FLOOR)
+        {
+            gba_rect(
+                bx + 2,
+                object->y,
+                object->width - 4,
+                3,
+                RGB15(18, 4, 4)
+            );
+        }
+        else if (object->type == BREAKABLE_CEILING)
+        {
+            gba_rect(
+                bx + 2,
+                object->y + object->height - 3,
+                object->width - 4,
+                3,
+                RGB15(18, 4, 4)
             );
         }
     }
@@ -783,6 +993,7 @@ void world_draw(int camera_x)
     {
         int sx =
             SECRET_HP_X - camera_x;
+
 
         if (sx + SECRET_HP_WIDTH >= 0 &&
             sx < 240)
@@ -816,6 +1027,7 @@ void world_draw(int camera_x)
     {
         if (x < -10 || x > 240)
             continue;
+
 
         gba_rect(
             x,
