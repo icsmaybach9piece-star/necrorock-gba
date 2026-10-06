@@ -1,35 +1,50 @@
 #include <stdint.h>
 
 #include "../include/gba.h"
+
 #include "world.h"
 
 /*
+    ==========================================================
     NECROROCK WORLD 01
+    ==========================================================
 
-    Temporary geometry.
+    Current prototype world:
 
-    The important thing here is the layout:
-    multiple elevations, gaps, routes and
-    landmarks that will later become real
-    biomechanical environments.
+        0 - 384      NECRO-CHAPEL
+        384 - 768    BONE TUNNELS
+        768 - 1152   CATACOMBS
+        1152 - 1536  ORGAN WORKS
+        1536 - 1920  FLESH PIT
+
+    Exploration systems added:
+
+        - persistent secret
+        - breakable barrier
+        - hidden passage
+        - shortcut state
+*/
+
+static GameState *game_state;
+
+
+/*
+    ==========================================================
+    MAIN GEOMETRY
+    ==========================================================
 */
 
 static const Solid solids[] =
 {
     /*
-        ==================================================
         MAIN FLOOR
-        ==================================================
     */
 
     {    0, 136, 1920, 24 },
 
 
     /*
-        ==================================================
         NECRO-CHAPEL
-        0 - 384
-        ==================================================
     */
 
     {   45, 108, 100, 10 },
@@ -38,10 +53,7 @@ static const Solid solids[] =
 
 
     /*
-        ==================================================
         BONE TUNNELS
-        384 - 768
-        ==================================================
     */
 
     {  410, 105, 120, 10 },
@@ -52,10 +64,7 @@ static const Solid solids[] =
 
 
     /*
-        ==================================================
         CATACOMBS
-        768 - 1152
-        ==================================================
     */
 
     {  785, 105, 100, 10 },
@@ -66,41 +75,82 @@ static const Solid solids[] =
 
 
     /*
-        ==================================================
         ORGAN WORKS
-        1152 - 1536
-        ==================================================
     */
 
     { 1175, 110, 100, 10 },
     { 1310,  88, 110, 10 },
-    { 1450, 112, 65, 10 },
+    { 1450, 112,  65, 10 },
 
     { 1220,  55,  50, 10 },
-    { 1380,  48, 60, 10 },
+    { 1380,  48,  60, 10 },
 
 
     /*
-        ==================================================
         FLESH PIT
-        1536 - 1920
-        ==================================================
     */
 
     { 1550, 105, 100, 10 },
     { 1690,  78, 100, 10 },
-    { 1810, 100, 75, 10 },
+    { 1810, 100,  75, 10 },
 
-    { 1610,  50, 60, 10 },
-    { 1760,  42, 55, 10 }
+    { 1610,  50,  60, 10 },
+    { 1760,  42,  55, 10 }
 };
 
 #define SOLID_COUNT \
     (sizeof(solids) / sizeof(solids[0]))
 
-void world_init(void)
-{
-}
+
+/*
+    ==========================================================
+    SPECIAL EXPLORATION OBJECTS
+    ==========================================================
+*/
+
+
+/*
+    First secret.
+
+    Located above the Necro-Chapel platform.
+
+    The player must explore vertically to find it.
+*/
+
+#define SECRET_HP_X       326
+#define SECRET_HP_Y        40
+#define SECRET_HP_WIDTH    8
+#define SECRET_HP_HEIGHT   8
+
+
+/*
+    First breakable barrier.
+
+    It blocks a small passage between the
+    Necro-Chapel and Bone Tunnels.
+
+    Once destroyed, it remains destroyed.
+*/
+
+#define BARRIER_X          360
+#define BARRIER_Y          104
+#define BARRIER_WIDTH       12
+#define BARRIER_HEIGHT      32
+
+
+/*
+    Hidden shortcut.
+
+    After the barrier is destroyed, the player
+    can pass through this opening.
+*/
+
+
+/*
+    ==========================================================
+    COLLISION HELPERS
+    ==========================================================
+*/
 
 static int overlap(
     int a,
@@ -113,6 +163,98 @@ static int overlap(
            a + size_a > b;
 }
 
+
+/*
+    ==========================================================
+    WORLD INITIALIZATION
+    ==========================================================
+*/
+
+void world_init(GameState *state)
+{
+    game_state = state;
+}
+
+
+/*
+    ==========================================================
+    WORLD UPDATE
+    ==========================================================
+*/
+
+void world_update(
+    int player_x,
+    int player_y,
+    int player_width,
+    int player_height,
+    int player_attacking,
+    int attack_x,
+    int attack_y,
+    int attack_width,
+    int attack_height
+)
+{
+    if (game_state == 0)
+        return;
+
+
+    /*
+        ======================================================
+        BREAKABLE BARRIER
+        ======================================================
+    */
+
+    if (!game_state->barrier_01_destroyed &&
+        player_attacking)
+    {
+        if (overlap(
+                attack_x,
+                attack_width,
+                BARRIER_X,
+                BARRIER_WIDTH) &&
+            overlap(
+                attack_y,
+                attack_height,
+                BARRIER_Y,
+                BARRIER_HEIGHT))
+        {
+            game_state->barrier_01_destroyed = 1;
+            game_state->shortcut_01_open = 1;
+        }
+    }
+
+
+    /*
+        ======================================================
+        SECRET HP UPGRADE
+        ======================================================
+    */
+
+    if (!game_state->secret_hp_01)
+    {
+        if (overlap(
+                player_x,
+                player_width,
+                SECRET_HP_X,
+                SECRET_HP_WIDTH) &&
+            overlap(
+                player_y,
+                player_height,
+                SECRET_HP_Y,
+                SECRET_HP_HEIGHT))
+        {
+            game_state->secret_hp_01 = 1;
+        }
+    }
+}
+
+
+/*
+    ==========================================================
+    COLLISION
+    ==========================================================
+*/
+
 int world_collides(
     int x,
     int y,
@@ -120,6 +262,10 @@ int world_collides(
     int height
 )
 {
+    /*
+        Normal world geometry.
+    */
+
     for (unsigned int i = 0; i < SOLID_COUNT; ++i)
     {
         const Solid *s = &solids[i];
@@ -139,16 +285,39 @@ int world_collides(
         }
     }
 
+
+    /*
+        Breakable barrier.
+
+        It disappears permanently after destruction.
+    */
+
+    if (game_state != 0 &&
+        !game_state->barrier_01_destroyed)
+    {
+        if (overlap(
+                x,
+                width,
+                BARRIER_X,
+                BARRIER_WIDTH) &&
+            overlap(
+                y,
+                height,
+                BARRIER_Y,
+                BARRIER_HEIGHT))
+        {
+            return 1;
+        }
+    }
+
     return 0;
 }
 
-/*
-    Draw temporary world geometry.
 
-    Each region gets a slightly different
-    architectural pattern so we can visually
-    tell where we are even before the final
-    art pass.
+/*
+    ==========================================================
+    REGION BACKGROUNDS
+    ==========================================================
 */
 
 static void draw_region_background(
@@ -164,6 +333,7 @@ static void draw_region_background(
     if (end < 0 || start >= 240)
         return;
 
+
     /*
         Region base.
     */
@@ -175,6 +345,7 @@ static void draw_region_background(
         136,
         RGB15(1, 1, 2)
     );
+
 
     /*
         Vertical biomechanical structures.
@@ -195,11 +366,14 @@ static void draw_region_background(
             RGB15(4, 5, 6)
         );
 
+
         /*
             Organic red vein.
         */
 
-        if (type == 0 || type == 2 || type == 4)
+        if (type == 0 ||
+            type == 2 ||
+            type == 4)
         {
             gba_rect(
                 x + 5,
@@ -211,14 +385,16 @@ static void draw_region_background(
         }
     }
 
+
     /*
-        Region-specific details.
+        NECRO-CHAPEL
     */
 
     if (type == 0)
     {
-        /* Chapel pillars */
-        for (int x = start + 18; x < end; x += 96)
+        for (int x = start + 18;
+             x < end;
+             x += 96)
         {
             if (x >= 0 && x < 240)
             {
@@ -232,10 +408,17 @@ static void draw_region_background(
             }
         }
     }
+
+
+    /*
+        BONE TUNNELS
+    */
+
     else if (type == 1)
     {
-        /* Bone-like horizontal structures */
-        for (int x = start; x < end; x += 64)
+        for (int x = start;
+             x < end;
+             x += 64)
         {
             if (x >= -20 && x < 240)
             {
@@ -257,10 +440,17 @@ static void draw_region_background(
             }
         }
     }
+
+
+    /*
+        CATACOMBS
+    */
+
     else if (type == 2)
     {
-        /* Catacomb arches */
-        for (int x = start + 24; x < end; x += 72)
+        for (int x = start + 24;
+             x < end;
+             x += 72)
         {
             if (x >= -20 && x < 240)
             {
@@ -290,10 +480,17 @@ static void draw_region_background(
             }
         }
     }
+
+
+    /*
+        ORGAN WORKS
+    */
+
     else if (type == 3)
     {
-        /* Machinery */
-        for (int x = start + 20; x < end; x += 80)
+        for (int x = start + 20;
+             x < end;
+             x += 80)
         {
             if (x >= -30 && x < 240)
             {
@@ -315,10 +512,17 @@ static void draw_region_background(
             }
         }
     }
+
+
+    /*
+        FLESH PIT
+    */
+
     else
     {
-        /* Flesh-pit ribs */
-        for (int x = start; x < end; x += 56)
+        for (int x = start;
+             x < end;
+             x += 56)
         {
             if (x >= -20 && x < 240)
             {
@@ -342,9 +546,17 @@ static void draw_region_background(
     }
 }
 
+
+/*
+    ==========================================================
+    WORLD DRAW
+    ==========================================================
+*/
+
 void world_draw(int camera_x)
 {
     gba_clear(RGB15(1, 1, 2));
+
 
     /*
         Five regions.
@@ -385,11 +597,14 @@ void world_draw(int camera_x)
         4
     );
 
+
     /*
         Platforms and floor.
     */
 
-    for (unsigned int i = 0; i < SOLID_COUNT; ++i)
+    for (unsigned int i = 0;
+         i < SOLID_COUNT;
+         ++i)
     {
         const Solid *s = &solids[i];
 
@@ -409,6 +624,7 @@ void world_draw(int camera_x)
             RGB15(6, 7, 8)
         );
 
+
         /*
             Red organic edge.
         */
@@ -425,11 +641,98 @@ void world_draw(int camera_x)
         }
     }
 
+
     /*
-        Floor markings.
+        ======================================================
+        BREAKABLE BARRIER
+        ======================================================
     */
 
-    for (int x = -camera_x; x < WORLD_WIDTH; x += 24)
+    if (game_state != 0 &&
+        !game_state->barrier_01_destroyed)
+    {
+        int bx = BARRIER_X - camera_x;
+
+        if (bx + BARRIER_WIDTH >= 0 &&
+            bx < 240)
+        {
+            gba_rect(
+                bx,
+                BARRIER_Y,
+                BARRIER_WIDTH,
+                BARRIER_HEIGHT,
+                RGB15(10, 8, 8)
+            );
+
+            /*
+                Organic red cracks.
+            */
+
+            gba_rect(
+                bx + 3,
+                BARRIER_Y + 5,
+                2,
+                22,
+                RGB15(18, 3, 4)
+            );
+
+            gba_rect(
+                bx + 7,
+                BARRIER_Y + 14,
+                2,
+                14,
+                RGB15(20, 3, 4)
+            );
+        }
+    }
+
+
+    /*
+        ======================================================
+        SECRET HP UPGRADE
+        ======================================================
+    */
+
+    if (game_state != 0 &&
+        !game_state->secret_hp_01)
+    {
+        int sx = SECRET_HP_X - camera_x;
+
+        if (sx + SECRET_HP_WIDTH >= 0 &&
+            sx < 240)
+        {
+            /*
+                Small pulsing-looking core.
+            */
+
+            gba_rect(
+                sx + 2,
+                SECRET_HP_Y + 2,
+                4,
+                4,
+                RGB15(25, 4, 5)
+            );
+
+            gba_rect(
+                sx,
+                SECRET_HP_Y + 3,
+                8,
+                2,
+                RGB15(15, 12, 12)
+            );
+        }
+    }
+
+
+    /*
+        ======================================================
+        FLOOR MARKINGS
+        ======================================================
+    */
+
+    for (int x = -camera_x;
+         x < WORLD_WIDTH;
+         x += 24)
     {
         if (x < -10 || x > 240)
             continue;
