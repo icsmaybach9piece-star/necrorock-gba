@@ -3,7 +3,16 @@
 
 #include <stdint.h>
 
-#define WORLD_WIDTH  960
+/*
+    NECROROCK WORLD
+
+    Large continuous prototype world.
+    Later this will become a proper tile-based GBA world.
+
+    8 screen widths = 1920 pixels.
+*/
+
+#define WORLD_WIDTH  1920
 #define WORLD_HEIGHT 160
 
 typedef struct
